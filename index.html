@@ -6,11 +6,13 @@
     <title>Quản lý Vị trí Tồn kho</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- SheetJS (Thư viện xuất file Excel) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Hammer.js (Yêu cầu bắt buộc để hỗ trợ nhận diện cử chỉ cho plugin zoom) -->
+    <!-- Hammer.js -->
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <!-- Chart.js Zoom Plugin -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
@@ -20,7 +22,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        /* Thẻ CSS Khung chứa biểu đồ */
+        [v-cloak] { display: none; }
         .interactive-card {
             position: relative;
             overflow: hidden;
@@ -30,1478 +32,1441 @@
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans antialiased">
 
-    <!-- Header / Navbar Responsive -->
-    <header class="bg-slate-900 text-white shadow-md py-4 px-4 sm:px-6 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-        <div class="flex items-center space-x-3 justify-center lg:justify-start">
-            <i class="fa-solid fa-warehouse text-2xl text-blue-400"></i>
-            <span class="text-lg sm:text-xl font-bold tracking-wider text-center lg:text-left">HỆ THỐNG QUẢN LÝ VỊ TRÍ TỒN KHO</span>
-        </div>
-        
-        <div class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto justify-center lg:justify-end">
-            <!-- Nút liên kết tới Kho Thành Phẩm & Menu Thông tin User -->
-            <div class="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
-                <a href="https://pqvinh99-glory.github.io/Ivenrory-FG/" target="_blank" class="bg-amber-600 hover:bg-amber-700 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition duration-200 shadow-md flex items-center shrink-0">
-                    <i class="fa-solid fa-arrow-up-right-from-square mr-1.5"></i>Kho Thành Phẩm
-                </a>
-                
-                <!-- Giao diện hiển thị Menu User sau khi đăng nhập -->
-                <div id="userMenu" class="flex items-center space-x-3 text-xs sm:text-sm text-slate-300 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 shrink-0 w-full sm:w-auto justify-between sm:justify-start">
-                    <div class="flex items-center space-x-2">
-                        <div id="userAvatar" class="w-6 h-6 sm:w-7 sm:h-7 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xs shrink-0">
-                            -
-                        </div>
-                        <div class="text-left">
-                            <p id="userDisplayName" class="font-bold text-white text-[11px] sm:text-xs">Guest</p>
-                            <p id="userRoleBadge" class="text-[9px] sm:text-[10px] text-slate-400 font-semibold leading-none">Role</p>
-                        </div>
-                    </div>
-                    <!-- Nút đăng xuất -->
-                    <button onclick="handleLogout()" class="text-slate-400 hover:text-rose-400 p-1 transition duration-150 shrink-0" title="Đăng xuất">
-                        <i class="fa-solid fa-right-from-bracket text-sm sm:text-base"></i>
-                    </button>
-                </div>
+    <div id="app" v-cloak>
+        <!-- Header / Navbar Responsive -->
+        <header class="bg-slate-900 text-white shadow-md py-4 px-4 sm:px-6 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <div class="flex items-center space-x-3 justify-center lg:justify-start">
+                <i class="fa-solid fa-warehouse text-2xl text-blue-400"></i>
+                <span class="text-lg sm:text-xl font-bold tracking-wider text-center lg:text-left">HỆ THỐNG QUẢN LÝ VỊ TRÍ TỒN KHO</span>
             </div>
             
-            <!-- Nhóm nút hành động chính -->
-            <div class="flex flex-wrap gap-2 w-full sm:w-auto justify-center sm:justify-end">
-                <button id="btnOpenInbound" onclick="openModal('inboundModal')" class="bg-emerald-600 hover:bg-emerald-700 px-3 py-2 sm:px-4 rounded-lg font-medium text-xs sm:text-sm transition duration-200 shadow-md flex-1 sm:flex-initial text-center whitespace-nowrap">
-                    <i class="fa-solid fa-plus mr-1"></i>Nhập Kho
-                </button>
-                <button id="btnOpenSystemInbound" onclick="openModal('systemCsvModal')" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-2 sm:px-4 rounded-lg font-medium text-xs sm:text-sm transition duration-200 shadow-md flex-1 sm:flex-initial text-center whitespace-nowrap">
-                    <i class="fa-solid fa-file-import mr-1"></i>Nhập File
-                </button>
-                <button id="btnOpenOutbound" onclick="openModal('outboundModal')" class="bg-rose-600 hover:bg-rose-700 px-3 py-2 sm:px-4 rounded-lg font-medium text-xs sm:text-sm transition duration-200 shadow-md flex-1 sm:flex-initial text-center whitespace-nowrap">
-                    <i class="fa-solid fa-minus mr-1"></i>Xuất Kho
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <main class="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-
-        <!-- KPI Summary Cards - Responsive Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <!-- Thẻ 1: Dòng Thực Tế -->
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-slate-500 font-medium">Dòng Thực Tế</p>
-                    <h3 id="statTotalRows" class="text-lg sm:text-xl font-bold text-slate-800 mt-1">0</h3>
-                </div>
-                <div class="bg-blue-50 p-2.5 rounded-lg text-blue-600 text-sm">
-                    <i class="fa-solid fa-list-check"></i>
-                </div>
-            </div>
-            <!-- Thẻ 2: Lượng Thực Tế -->
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-slate-500 font-medium">Lượng Thực Tế</p>
-                    <h3 id="statTotalQuality" class="text-lg sm:text-xl font-bold text-slate-800 mt-1">0</h3>
-                </div>
-                <div class="bg-emerald-50 p-2.5 rounded-lg text-emerald-600 text-sm">
-                    <i class="fa-solid fa-cubes"></i>
-                </div>
-            </div>
-            <!-- Thẻ 3: Dòng Hệ Thống -->
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-slate-500 font-medium">Dòng Hệ Thống</p>
-                    <h3 id="statSystemRows" class="text-lg sm:text-xl font-bold text-slate-800 mt-1">0</h3>
-                </div>
-                <div class="bg-slate-100 p-2.5 rounded-lg text-slate-600 text-sm border border-slate-200">
-                    <i class="fa-solid fa-network-wired"></i>
-                </div>
-            </div>
-            <!-- Thẻ 4: Lượng Hệ Thống -->
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-slate-500 font-medium">Lượng Hệ Thống</p>
-                    <h3 id="statSystemQuality" class="text-lg sm:text-xl font-bold text-slate-800 mt-1">0</h3>
-                </div>
-                <div class="bg-indigo-50 p-2.5 rounded-lg text-indigo-600 text-sm border border-indigo-100">
-                    <i class="fa-solid fa-server"></i>
-                </div>
-            </div>
-            <!-- Thẻ 5: Tổng lượng chênh lệch (Thực tế - Hệ thống) -->
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-slate-500 font-medium font-semibold text-rose-600">Tổng lượng lệch</p>
-                    <h3 id="statTotalVariance" class="text-lg sm:text-xl font-bold text-rose-600 mt-1">0</h3>
-                </div>
-                <div class="bg-rose-50 p-2.5 rounded-lg text-rose-600 text-sm border border-rose-100">
-                    <i class="fa-solid fa-scale-unbalanced"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- Khung biểu đồ đứng -->
-        <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[320px] relative">
-            <h4 class="font-bold text-slate-700 mb-2 flex items-center justify-between text-xs sm:text-sm">
-                <span class="truncate"><i class="fa-solid fa-chart-column text-blue-500 mr-2"></i>Biểu Đồ Đối Chiếu Thực Tế - Hệ Thống Theo Mã Hàng</span>
-                <button onclick="resetZoomAndPan()" class="text-[10px] sm:text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded border border-slate-300 transition duration-150 shrink-0">
-                    <i class="fa-solid fa-arrows-rotate mr-1"></i>Reset Khung
-                </button>
-            </h4>
-            
-            <div id="interactiveCard" class="interactive-card flex-1 border border-slate-100 rounded-lg bg-slate-50/50">
-                <div id="zoomPanContent" class="h-full w-full p-1 sm:p-2">
-                    <canvas id="comparisonChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- BẢNG PHÂN TÍCH PIVOT ĐỐI CHIẾU THỰC TẾ & HỆ THỐNG -->
-        <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm">
-            <h4 class="font-bold text-slate-700 mb-3 flex items-center text-xs sm:text-sm">
-                <i class="fa-solid fa-arrows-to-dot text-indigo-500 mr-2"></i>Bảng Phân Tích Pivot Đối Chiếu Sản Lượng Theo Mã Hàng (Stock Code)
-            </h4>
-            <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-[300px]">
-                <table class="w-full text-left border-collapse text-xs min-w-[650px]">
-                    <thead class="bg-slate-100 text-slate-600 uppercase font-bold sticky top-0 border-b border-slate-200 z-10">
-                        <tr>
-                            <th class="py-3 px-4">STT</th>
-                            <th class="py-3 px-4">Mã hàng (Stock Code)</th>
-                            <th class="py-3 px-4 text-right">Tồn Thực tế (Actual Qty)</th>
-                            <th class="py-3 px-4 text-right">Tồn Hệ thống (System Qty)</th>
-                            <th class="py-3 px-4 text-right">Chênh lệch (Variance)</th>
-                            <th class="py-3 px-4 text-center">Trạng thái</th>
-                        </tr>
-                    </thead>
-                    <tbody id="pivotTableBody" class="divide-y divide-slate-200 font-medium text-slate-700">
-                        <!-- JS renders pivot rows here -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Smart Filter Panel -->
-        <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm">
-            <h4 class="font-bold text-slate-700 mb-4 flex items-center text-xs sm:text-sm">
-                <i class="fa-solid fa-filter text-indigo-500 mr-2"></i> Bộ lọc thông minh toàn diện
-            </h4>
-            <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                </div>
-                <input type="text" id="smartFilter" placeholder="Tìm kiếm nhanh... Nhập mã hàng (code), vị trí (bin), mã tag (tagid), hoặc kho (wh)..." oninput="applyFilters()" class="w-full pl-10 pr-4 py-2 sm:py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm shadow-sm">
-            </div>
-        </div>
-
-        <!-- Data Table Section (Bảng tồn kho thực tế) -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="px-4 sm:px-6 py-4 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
-                <h4 class="font-bold text-slate-700 flex items-center text-xs sm:text-sm">
-                    <i class="fa-solid fa-table text-slate-500 mr-2"></i> Danh sách chi tiết tồn kho thực tế
-                </h4>
-                
-                <div class="flex items-center space-x-2 w-full sm:w-auto justify-between sm:justify-end">
-                    <button id="btnImportCsv" onclick="openModal('csvImportModal')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition duration-150 shadow-sm flex-1 sm:flex-initial text-center">
-                        <i class="fa-solid fa-file-csv mr-1"></i> Nhập CSV Thực Tế
-                    </button>
-                    <button onclick="exportToExcel()" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition duration-150 shadow-sm flex-1 sm:flex-initial text-center">
-                        <i class="fa-solid fa-file-excel mr-1"></i> Xuất Excel (Đa Sheet)
-                    </button>
-                </div>
-            </div>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse min-w-[850px]">
-                    <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                            <th class="py-3.5 px-6">ID</th>
-                            <th class="py-3.5 px-6">Ngày Tạo (Created At)</th>
-                            <th class="py-3.5 px-6">Tag ID</th>
-                            <th class="py-3.5 px-6">Vị trí (Bin)</th>
-                            <th class="py-3.5 px-6">Mã hàng (Code)</th>
-                            <th class="py-3.5 px-6">Kho (WH)</th>
-                            <th class="py-3.5 px-6 text-right">Số lượng (Quality)</th>
-                            <th class="py-3.5 px-6 text-center" id="colActionHeader">Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody id="inventoryTableBody" class="divide-y divide-slate-200 text-sm">
-                        <!-- JS renders rows here -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- BẢNG HIỂN THỊ DỮ LIỆU TABLE GHILOG -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mt-6">
-            <div class="px-4 sm:px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-900 text-white">
-                <h4 class="font-bold flex items-center text-xs sm:text-sm tracking-wide">
-                    <i class="fa-solid fa-clock-rotate-left text-blue-400 mr-2"></i> NHẬT KÝ HOẠT ĐỘNG HỆ THỐNG (TABLE GHILOG)
-                </h4>
-                <button onclick="fetchLogsFromSupabase()" class="text-[10px] sm:text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg font-semibold flex items-center space-x-1 border border-slate-700 transition duration-150 shrink-0">
-                    <i class="fa-solid fa-arrows-rotate"></i> <span>Làm mới log</span>
-                </button>
-            </div>
-            <div class="overflow-x-auto max-h-[300px]">
-                <table class="w-full text-left border-collapse min-w-[1050px]">
-                    <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider sticky top-0 z-10 shadow-sm">
-                            <th class="py-3 px-4">Log ID</th>
-                            <th class="py-3 px-4">Thời gian tạo</th>
-                            <th class="py-3 px-4">Người thực hiện</th>
-                            <th class="py-3 px-4">Loại hoạt động</th>
-                            <th class="py-3 px-4">Tag ID</th>
-                            <th class="py-3 px-4">Mã hàng (Code)</th>
-                            <th class="py-3 px-4">Vị trí (Bin)</th>
-                            <th class="py-3 px-4">Kho (WH)</th>
-                            <th class="py-3 px-4 text-right">Số lượng</th>
-                            <th class="py-3 px-4">Chi tiết / Ghi chú</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logsTableBody" class="divide-y divide-slate-200 text-xs text-slate-700">
-                        <!-- JS renders logs here -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- ==================== GIAO DIỆN ĐĂNG NHẬP HỆ THỐNG (MẶC ĐỊNH PHỦ TOÀN MÀN HÌNH) ==================== -->
-    <div id="loginScreen" class="fixed inset-0 bg-slate-950 z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8 space-y-6 border border-slate-100 transform transition-all duration-300">
-            <div class="text-center space-y-2">
-                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-sm">
-                    <i class="fa-solid fa-warehouse"></i>
-                </div>
-                <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">ĐĂNG NHẬP HỆ THỐNG</h2>
-                <p class="text-xs text-slate-500">Vui lòng sử dụng tài khoản nội bộ được cấp phép</p>
-            </div>
-
-            <form id="loginForm" onsubmit="handleLoginSubmit(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1 tracking-wider">Tên tài khoản (Username)</label>
-                    <div class="relative">
-                        <input type="text" required id="loginUsername" placeholder="Ví dụ: luu, vinh, trinh..." class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-sm transition">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                            <i class="fa-solid fa-user text-sm"></i>
+            <div class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto justify-center lg:justify-end">
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
+                    <a href="https://pqvinh99-glory.github.io/Ivenrory-FG/" target="_blank" class="bg-amber-600 hover:bg-amber-700 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition duration-200 shadow-md flex items-center shrink-0">
+                        <i class="fa-solid fa-arrow-up-right-from-square mr-1.5"></i>Kho Thành Phẩm
+                    </a>
+                    
+                    <!-- Menu User sau khi đăng nhập -->
+                    <div id="userMenu" class="flex items-center space-x-3 text-xs sm:text-sm text-slate-300 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 shrink-0 w-full sm:w-auto justify-between sm:justify-start">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-6 h-6 sm:w-7 sm:h-7 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xs shrink-0">
+                                {{ currentDisplayName.charAt(0).toUpperCase() }}
+                            </div>
+                            <div class="text-left">
+                                <p class="font-bold text-white text-[11px] sm:text-xs">{{ currentDisplayName }}</p>
+                                <p class="text-[9px] sm:text-[10px] text-slate-400 font-semibold leading-none">{{ currentRole }}</p>
+                            </div>
                         </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1 tracking-wider">Mật khẩu (Password)</label>
-                    <div class="relative">
-                        <input type="password" required id="loginPassword" placeholder="Nhập mật khẩu..." class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-sm transition">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                            <i class="fa-solid fa-lock text-sm"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center space-x-2 text-xs text-slate-600 cursor-pointer select-none">
-                        <input type="checkbox" id="rememberMe" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
-                        <span>Ghi nhớ đăng nhập</span>
-                    </label>
-                </div>
-
-                <div id="loginErrorMessage" class="text-rose-500 text-xs font-medium hidden text-center bg-rose-50 py-2 rounded-lg border border-rose-100">
-                    <!-- Thông báo lỗi hiển thị ở đây -->
-                </div>
-
-                <button type="submit" id="btnLoginSubmit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow-md hover:shadow-lg transition duration-150 text-sm flex items-center justify-center space-x-2">
-                    <i class="fa-solid fa-right-to-bracket"></i>
-                    <span>Đăng Nhập</span>
-                </button>
-            </form>
-        </div>
-    </div>
-
-
-    <!-- ==================== MODALS / CỬA SỔ NỔI ==================== -->
-
-    <!-- Modal Nhập Kho Thực Tế -->
-    <div id="inboundModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col">
-            <div class="bg-emerald-600 px-6 py-4 text-white flex justify-between items-center shrink-0">
-                <h3 class="font-bold text-base sm:text-lg"><i class="fa-solid fa-box-open mr-2"></i>Nhập Kho Thực Tế</h3>
-                <button onclick="closeModal('inboundModal')" class="text-white hover:text-slate-200 text-xl"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <form id="inboundForm" onsubmit="handleInboundSubmit(event)" class="p-4 sm:p-6 space-y-4 overflow-y-auto">
-                <!-- Thanh trạng thái thông báo không chặn (thay thế alert) -->
-                <div id="inboundStatusMessage" class="hidden py-2 rounded-lg text-xs font-semibold text-center transition duration-200"></div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2">
-                        <label class="block text-sm font-medium text-slate-600 mb-1">Tag ID</label>
-                        <!-- Tắt gợi ý trình duyệt autocomplete="off" để tránh che mắt -->
-                        <input type="text" required id="inboundTagId" autocomplete="off" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1">Bin (Vị trí)</label>
-                        <!-- Chỉ gợi ý thông qua datalist tùy biến -->
-                        <input type="text" required id="inboundBin" list="binSuggestions" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
-                        <datalist id="binSuggestions"></datalist>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1">Code (Mã hàng)</label>
-                        <!-- Chỉ gợi ý thông qua datalist tùy biến -->
-                        <input type="text" required id="inboundCode" list="codeSuggestions" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
-                        <datalist id="codeSuggestions"></datalist>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1">WH (Kho)</label>
-                        <!-- Chỉ gợi ý thông qua datalist tùy biến -->
-                        <input type="text" required id="inboundWH" list="whSuggestions" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
-                        <datalist id="whSuggestions"></datalist>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1">Quality (Số lượng)</label>
-                        <!-- Tắt gợi ý trình duyệt autocomplete="off" để tránh che mắt -->
-                        <input type="number" required id="inboundQuality" autocomplete="off" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
-                    </div>
-                </div>
-                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100 shrink-0">
-                    <button type="button" onclick="closeModal('inboundModal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-md text-sm">Xác Nhận Nhập</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Nhập File Hệ Thống -->
-    <div id="systemCsvModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col">
-            <div class="bg-indigo-600 px-6 py-4 text-white flex justify-between items-center shrink-0">
-                <h3 class="font-bold text-base sm:text-lg"><i class="fa-solid fa-file-invoice mr-2"></i>Nhập File Hệ Thống (CSV Nguồn)</h3>
-                <button onclick="closeModal('systemCsvModal')" class="text-white hover:text-slate-200 text-xl"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="p-4 sm:p-6 space-y-4 overflow-y-auto">
-                <div class="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200 leading-relaxed">
-                    <span class="font-bold text-slate-700 block mb-1">Cấu trúc file nguồn hệ thống nhận diện tự động:</span>
-                    <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 break-all block sm:inline">Stock Code, Warehouse, CREATEDATE, BATCH, BIN, Qty</code>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Dán nội dung văn bản CSV từ Excel:</label>
-                    <textarea id="systemCsvTextArea" rows="6" placeholder="Stock Code,Warehouse,CREATEDATE,BATCH,BIN,Qty&#10;1256810001,01,6/2/2026,900002980666,,500&#10;1256810001,01,12/31/2025,900002880622,01,700" class="w-full px-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
-                </div>
-                <div class="border-t border-slate-100 pt-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 shrink-0">
-                    <div class="relative">
-                        <input type="file" id="systemCsvFileInput" accept=".csv" onchange="handleSystemCSVFile(event)" class="hidden">
-                        <button type="button" onclick="document.getElementById('systemCsvFileInput').click()" class="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-lg font-semibold border border-slate-300">
-                            <i class="fa-solid fa-file-arrow-up mr-1"></i>Chọn tệp từ máy tính (.csv)
+                        <button @click="handleLogout" class="text-slate-400 hover:text-rose-400 p-1 transition duration-150 shrink-0" title="Đăng xuất">
+                            <i class="fa-solid fa-right-from-bracket text-sm sm:text-base"></i>
                         </button>
                     </div>
-                    <div class="flex space-x-2 justify-end">
-                        <button type="button" onclick="closeModal('systemCsvModal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">Hủy</button>
-                        <button type="button" onclick="processSystemCSVImport()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-md">Đồng bộ File Nguồn</button>
+                </div>
+                
+                <!-- Nhóm nút hành động chính -->
+                <div class="flex flex-wrap gap-2 w-full sm:w-auto justify-center sm:justify-end">
+                    <button v-if="currentRole === 'Admin' || currentRole === 'Operator'" @click="openModal('inbound')" class="bg-emerald-600 hover:bg-emerald-700 px-3 py-2 sm:px-4 rounded-lg font-medium text-xs sm:text-sm transition duration-200 shadow-md flex-1 sm:flex-initial text-center whitespace-nowrap">
+                        <i class="fa-solid fa-plus mr-1"></i>Nhập Kho
+                    </button>
+                    <button v-if="currentRole === 'Admin' || currentRole === 'Operator'" @click="openModal('systemCsv')" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-2 sm:px-4 rounded-lg font-medium text-xs sm:text-sm transition duration-200 shadow-md flex-1 sm:flex-initial text-center whitespace-nowrap">
+                        <i class="fa-solid fa-file-import mr-1"></i>Nhập File
+                    </button>
+                    <button v-if="currentRole === 'Admin' || currentRole === 'Operator'" @click="openModal('outbound')" class="bg-rose-600 hover:bg-rose-700 px-3 py-2 sm:px-4 rounded-lg font-medium text-xs sm:text-sm transition duration-200 shadow-md flex-1 sm:flex-initial text-center whitespace-nowrap">
+                        <i class="fa-solid fa-minus mr-1"></i>Xuất Kho
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+
+            <!-- KPI Summary Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Dòng Thực Tế</p>
+                        <h3 class="text-lg sm:text-xl font-bold text-slate-800 mt-1">{{ inventoryData.length }}</h3>
+                    </div>
+                    <div class="bg-blue-50 p-2.5 rounded-lg text-blue-600 text-sm">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Lượng Thực Tế</p>
+                        <h3 class="text-lg sm:text-xl font-bold text-slate-800 mt-1">{{ totalQuality.toLocaleString('vi-VN') }}</h3>
+                    </div>
+                    <div class="bg-emerald-50 p-2.5 rounded-lg text-emerald-600 text-sm">
+                        <i class="fa-solid fa-cubes"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Mã Hàng Đang Có</p>
+                        <h3 class="text-lg sm:text-xl font-bold text-slate-800 mt-1">{{ uniqueCodesCount }}</h3>
+                    </div>
+                    <div class="bg-slate-100 p-2.5 rounded-lg text-slate-600 text-sm border border-slate-200">
+                        <i class="fa-solid fa-network-wired"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Lượng Hệ Thống</p>
+                        <h3 class="text-lg sm:text-xl font-bold text-slate-800 mt-1">{{ totalSystemQuality.toLocaleString('vi-VN') }}</h3>
+                    </div>
+                    <div class="bg-indigo-50 p-2.5 rounded-lg text-indigo-600 text-sm border border-indigo-100">
+                        <i class="fa-solid fa-server"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium font-semibold text-rose-600">Tổng lượng lệch</p>
+                        <h3 :class="{'text-rose-600': totalVarianceQty < 0, 'text-emerald-600': totalVarianceQty > 0, 'text-slate-600': totalVarianceQty === 0}" class="text-lg sm:text-xl font-bold mt-1">
+                            {{ totalVarianceQty.toLocaleString('vi-VN') }}
+                        </h3>
+                    </div>
+                    <div class="bg-rose-50 p-2.5 rounded-lg text-rose-600 text-sm border border-rose-100">
+                        <i class="fa-solid fa-scale-unbalanced"></i>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Modal Xuất Kho -->
-    <div id="outboundModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col">
-            <div class="bg-rose-600 px-6 py-4 text-white flex justify-between items-center shrink-0">
-                <h3 class="font-bold text-base sm:text-lg"><i class="fa-solid fa-truck-ramp-box mr-2"></i>Xuất Kho Nâng Cao</h3>
-                <button onclick="closeModal('outboundModal')" class="text-white hover:text-slate-200 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <!-- Khung biểu đồ -->
+            <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[320px] relative">
+                <h4 class="font-bold text-slate-700 mb-2 flex items-center justify-between text-xs sm:text-sm">
+                    <span class="truncate"><i class="fa-solid fa-chart-column text-blue-500 mr-2"></i>Biểu Đồ Đối Chiếu Thực Tế - Hệ Thống Theo Mã Hàng</span>
+                    <button @click="resetZoomAndPan" class="text-[10px] sm:text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded border border-slate-300 transition duration-150 shrink-0">
+                        <i class="fa-solid fa-arrows-rotate mr-1"></i>Reset Khung
+                    </button>
+                </h4>
+                
+                <div class="interactive-card flex-1 border border-slate-100 rounded-lg bg-slate-50/50">
+                    <div class="h-full w-full p-1 sm:p-2">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                </div>
             </div>
-            <form id="outboundForm" onsubmit="handleOutboundSubmit(event)" class="p-4 sm:p-6 space-y-4 overflow-y-auto">
-                <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Chế độ xuất (Mode)</label>
-                    <select id="outboundMode" onchange="toggleOutboundModeField()" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-sm">
-                        <option value="WO" selected>Xuất theo lệnh sản xuất (WO)</option>
-                        <option value="YEU_CAU">Xuất phát theo phiếu yêu cầu</option>
-                        <option value="TIEU_HAO">Xuất phát vật liệu tiêu hao</option>
-                    </select>
+
+            <!-- BẢNG PHÂN TÍCH PIVOT ĐỐI CHIẾU THỰC TẾ & HỆ THỐNG -->
+            <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm">
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center text-xs sm:text-sm">
+                    <i class="fa-solid fa-arrows-to-dot text-indigo-500 mr-2"></i>Bảng Phân Tích Pivot Đối Chiếu Sản Lượng Theo Mã Hàng (Stock Code)
+                </h4>
+                <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-[300px]">
+                    <table class="w-full text-left border-collapse text-xs min-w-[650px]">
+                        <thead class="bg-slate-100 text-slate-600 uppercase font-bold sticky top-0 border-b border-slate-200 z-10">
+                            <tr>
+                                <th class="py-3 px-4">STT</th>
+                                <th class="py-3 px-4">Mã hàng (Stock Code)</th>
+                                <th class="py-3 px-4 text-right">Tồn Thực tế (Actual Qty)</th>
+                                <th class="py-3 px-4 text-right">Tồn Hệ thống (System Qty)</th>
+                                <th class="py-3 px-4 text-right">Chênh lệch (Variance)</th>
+                                <th class="py-3 px-4 text-center">Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 font-medium text-slate-700">
+                            <tr v-for="(item, idx) in filteredComparisonData" :key="item.code" class="hover:bg-slate-50 transition duration-150">
+                                <td class="py-2.5 px-4 text-slate-400 font-mono">{{ idx + 1 }}</td>
+                                <td class="py-2.5 px-4 font-bold text-slate-800">{{ item.code }}</td>
+                                <td class="py-2.5 px-4 text-right font-semibold">{{ Number(item.actual_qty || 0).toLocaleString('vi-VN') }}</td>
+                                <td class="py-2.5 px-4 text-right font-semibold text-slate-500">{{ Number(item.system_qty || 0).toLocaleString('vi-VN') }}</td>
+                                <td class="py-2.5 px-4 text-right font-bold font-mono" :class="{'text-emerald-600': item.variance == 0, 'text-amber-600': item.variance > 0, 'text-rose-600': item.variance < 0}">
+                                    {{ item.variance > 0 ? '+' : '' }}{{ Number(item.variance || 0).toLocaleString('vi-VN') }}
+                                </td>
+                                <td class="py-2.5 px-4 text-center font-semibold">
+                                    <span v-if="item.variance == 0" class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">Khớp</span>
+                                    <span v-else-if="item.variance > 0" class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200 text-[10px]">Dư Thực Tế</span>
+                                    <span v-else class="bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200 text-[10px]">Thiếu hụt</span>
+                                </td>
+                            </tr>
+                            <tr v-if="filteredComparisonData.length === 0">
+                                <td colspan="6" class="py-4 text-center text-slate-400">Không có dữ liệu đối chiếu Pivot</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Smart Filter Panel -->
+            <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm">
+                <h4 class="font-bold text-slate-700 mb-4 flex items-center text-xs sm:text-sm">
+                    <i class="fa-solid fa-filter text-indigo-500 mr-2"></i> Bộ lọc thông minh toàn diện
+                </h4>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </div>
+                    <input type="text" v-model="smartFilter" placeholder="Tìm kiếm nhanh... Nhập mã hàng (code), vị trí (bin), mã tag (tagid), hoặc kho (wh)..." class="w-full pl-10 pr-4 py-2 sm:py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm shadow-sm">
+                </div>
+            </div>
+
+            <!-- Data Table Section (Bảng tồn kho thực tế) -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-4 sm:px-6 py-4 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
+                    <h4 class="font-bold text-slate-700 flex items-center text-xs sm:text-sm">
+                        <i class="fa-solid fa-table text-slate-500 mr-2"></i> Danh sách chi tiết tồn kho thực tế
+                    </h4>
+                    
+                    <div class="flex items-center space-x-2 w-full sm:w-auto justify-between sm:justify-end">
+                        <button v-if="currentRole === 'Admin'" @click="openModal('csvImport')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition duration-150 shadow-sm flex-1 sm:flex-initial text-center">
+                            <i class="fa-solid fa-file-csv mr-1"></i> Nhập CSV Thực Tế
+                        </button>
+                        <button @click="exportToExcel" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition duration-150 shadow-sm flex-1 sm:flex-initial text-center">
+                            <i class="fa-solid fa-file-excel mr-1"></i> Xuất Excel (Đa Sheet)
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[850px]">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                                <th class="py-3.5 px-6">ID</th>
+                                <th class="py-3.5 px-6">Ngày Tạo (Created At)</th>
+                                <th class="py-3.5 px-6">Tag ID</th>
+                                <th class="py-3.5 px-6">Vị trí (Bin)</th>
+                                <th class="py-3.5 px-6">Mã hàng (Code)</th>
+                                <th class="py-3.5 px-6">Kho (WH)</th>
+                                <th class="py-3.5 px-6 text-right">Số lượng (Quality)</th>
+                                <th v-if="currentRole === 'Admin'" class="py-3.5 px-6 text-center">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 text-sm">
+                            <tr v-for="item in paginatedInventory" :key="item.id" class="hover:bg-slate-50 transition duration-150">
+                                <td class="py-3.5 px-6 font-semibold font-mono text-slate-500">{{ item.id }}</td>
+                                <td class="py-3.5 px-6 text-slate-500">{{ formatDate(item.created_at) }}</td>
+                                <td class="py-3.5 px-6 font-medium text-slate-900">{{ item.tag_id }}</td>
+                                <td class="py-3.5 px-6">
+                                    <span class="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-md text-xs font-semibold border border-indigo-100">{{ item.bin }}</span>
+                                </td>
+                                <td class="py-3.5 px-6 font-medium text-slate-700">{{ item.code }}</td>
+                                <td class="py-3.5 px-6 text-slate-600">{{ item.wh }}</td>
+                                <td class="py-3.5 px-6 text-right font-bold text-slate-900">{{ Number(item.quality || 0).toLocaleString('vi-VN') }}</td>
+                                <td v-if="currentRole === 'Admin'" class="py-3.5 px-6 text-center">
+                                    <button @click="startRowEdit(item)" class="text-blue-600 hover:text-blue-800 font-semibold text-xs inline-flex items-center space-x-1">
+                                        <i class="fa-solid fa-pen"></i> <span>Sửa dòng</span>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr v-if="paginatedInventory.length === 0">
+                                <td colspan="8" class="py-4 text-center text-slate-400">Không tìm thấy dữ liệu phù hợp</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
 
-                <div id="outboundWoField">
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Nhập Số Lệnh WO</label>
-                    <input type="text" id="outboundWoValue" placeholder="Nhập mã lệnh sản xuất..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-sm">
+                <!-- Pagination Controls cho Bảng Tồn Kho -->
+                <div class="px-4 py-3 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div class="text-xs text-slate-500 text-center sm:text-left">
+                        Hiển thị <span class="font-semibold">{{ (inventoryCurrentPage - 1) * inventoryPerPage + 1 }}</span> đến 
+                        <span class="font-semibold">{{ Math.min(inventoryCurrentPage * inventoryPerPage, filteredInventory.length) }}</span> 
+                        trong tổng số <span class="font-semibold">{{ filteredInventory.length }}</span> dòng dữ liệu đã lọc
+                    </div>
+                    <div class="flex items-center space-x-1 text-xs">
+                        <button @click="inventoryCurrentPage = 1" :disabled="inventoryCurrentPage === 1" class="px-2.5 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-600">
+                            <i class="fa-solid fa-angles-left"></i>
+                        </button>
+                        <button @click="inventoryCurrentPage--" :disabled="inventoryCurrentPage === 1" class="px-2.5 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-600">
+                            <i class="fa-solid fa-angle-left"></i>
+                        </button>
+                        <span class="px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold rounded">
+                            Trang {{ inventoryCurrentPage }} / {{ totalInventoryPages }}
+                        </span>
+                        <button @click="inventoryCurrentPage++" :disabled="inventoryCurrentPage === totalInventoryPages" class="px-2.5 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-600">
+                            <i class="fa-solid fa-angle-right"></i>
+                        </button>
+                        <button @click="inventoryCurrentPage = totalInventoryPages" :disabled="inventoryCurrentPage === totalInventoryPages" class="px-2.5 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-600">
+                            <i class="fa-solid fa-angles-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BẢNG HIỂN THỊ DỮ LIỆU TABLE GHILOG -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mt-6">
+                <div class="px-4 sm:px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center bg-slate-900 text-white gap-3">
+                    <h4 class="font-bold flex items-center text-xs sm:text-sm tracking-wide">
+                        <i class="fa-solid fa-clock-rotate-left text-blue-400 mr-2"></i> NHẬT KÝ HOẠT ĐỘNG HỆ THỐNG (TABLE GHILOG)
+                    </h4>
+                    <button @click="fetchLogsFromSupabase" class="text-[10px] sm:text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg font-semibold flex items-center space-x-1 border border-slate-700 transition duration-150 shrink-0">
+                        <i class="fa-solid fa-arrows-rotate"></i> <span>Làm mới log</span>
+                    </button>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Quét hoặc Nhập Tag ID</label>
-                    <div class="relative">
-                        <input type="text" required id="outboundTagId" placeholder="VD: 900002950002" class="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-sm">
+                <!-- Input lọc thông tin cho LOG -->
+                <div class="p-3 bg-slate-800 border-b border-slate-700 flex flex-col sm:flex-row gap-3 items-center justify-between">
+                    <div class="relative w-full sm:max-w-md">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                            <i class="fa-solid fa-barcode"></i>
+                            <i class="fa-solid fa-filter"></i>
+                        </div>
+                        <input type="text" v-model="logFilter" placeholder="Lọc nhanh nhật ký (loại hoạt động, mã hàng, tag id, vị trí...)" class="w-full pl-10 pr-4 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-inner">
+                    </div>
+                    <div class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                        Tìm thấy {{ filteredLogs.length }} lịch sử hoạt động
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto max-h-[350px]">
+                    <table class="w-full text-left border-collapse min-w-[1050px]">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider sticky top-0 z-10 shadow-sm">
+                                <th class="py-3 px-4">Log ID</th>
+                                <th class="py-3 px-4">Thời gian tạo</th>
+                                <th class="py-3 px-4">Người thực hiện</th>
+                                <th class="py-3 px-4">Loại hoạt động</th>
+                                <th class="py-3 px-4">Tag ID</th>
+                                <th class="py-3 px-4">Mã hàng (Code)</th>
+                                <th class="py-3 px-4">Vị trí (Bin)</th>
+                                <th class="py-3 px-4">Kho (WH)</th>
+                                <th class="py-3 px-4 text-right">Số lượng</th>
+                                <th class="py-3 px-4">Chi tiết / Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 text-xs text-slate-700">
+                            <tr v-for="log in filteredLogs" :key="log.id" class="hover:bg-slate-50 transition duration-150">
+                                <td class="py-3 px-4 font-semibold font-mono text-slate-500">{{ log.id }}</td>
+                                <td class="py-3 px-4 text-slate-500 whitespace-nowrap">{{ formatDate(log.created_at) }}</td>
+                                <td class="py-3 px-4 font-bold text-indigo-600">{{ log.username || 'System' }}</td>
+                                <td class="py-3 px-4 whitespace-nowrap">
+                                    <span :class="['px-2.5 py-1 rounded-md font-semibold text-xs inline-flex items-center', getActionBadgeClass(log.action_type)]">
+                                        <i :class="['mr-1', getActionIconClass(log.action_type)]"></i>
+                                        {{ getActionLabel(log.action_type) }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 font-mono font-semibold text-slate-800">{{ log.tag_id }}</td>
+                                <td class="py-3 px-4 font-medium text-slate-600">{{ log.code }}</td>
+                                <td class="py-3 px-4">
+                                    <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs">{{ log.bin }}</span>
+                                </td>
+                                <td class="py-3 px-4 text-slate-500">{{ log.wh }}</td>
+                                <td class="py-3 px-4 text-right font-bold text-slate-900">{{ log.quality ? Number(log.quality).toLocaleString('vi-VN') : '' }}</td>
+                                <td class="py-3 px-4 text-slate-500 max-w-xs truncate" :title="log.details">{{ log.details }}</td>
+                            </tr>
+                            <tr v-if="filteredLogs.length === 0">
+                                <td colspan="10" class="py-4 text-center text-slate-400">Không tìm thấy nhật ký hoạt động nào</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- ==================== GIAO DIỆN ĐĂNG NHẬP HỆ THỐNG ==================== -->
+        <div v-if="!currentUser" class="fixed inset-0 bg-slate-950 z-[100] flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8 space-y-6 border border-slate-100 transform transition-all duration-300">
+                <div class="text-center space-y-2">
+                    <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-sm">
+                        <i class="fa-solid fa-warehouse"></i>
+                    </div>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">ĐĂNG NHẬP HỆ THỐNG</h2>
+                    <p class="text-xs text-slate-500">Vui lòng sử dụng tài khoản nội bộ được cấp phép</p>
+                </div>
+
+                <form @submit.prevent="handleLoginSubmit" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1 tracking-wider">Tên tài khoản (Username)</label>
+                        <div class="relative">
+                            <input type="text" required v-model="loginUsername" placeholder="Ví dụ: luu, vinh, trinh..." class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-sm transition">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-user text-sm"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1 tracking-wider">Mật khẩu (Password)</label>
+                        <div class="relative">
+                            <input type="password" required v-model="loginPassword" placeholder="Nhập mật khẩu..." class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-sm transition">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-lock text-sm"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center space-x-2 text-xs text-slate-600 cursor-pointer select-none">
+                            <input type="checkbox" v-model="rememberMe" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+                            <span>Ghi nhớ đăng nhập</span>
+                        </label>
+                    </div>
+
+                    <div v-if="loginErrorMessage" class="text-rose-500 text-xs font-medium text-center bg-rose-50 py-2 rounded-lg border border-rose-100">
+                        {{ loginErrorMessage }}
+                    </div>
+
+                    <button type="submit" :disabled="isLoading" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow-md hover:shadow-lg transition duration-150 text-sm flex items-center justify-center space-x-2">
+                        <i v-if="isLoading" class="fa-solid fa-spinner animate-spin"></i>
+                        <i v-else class="fa-solid fa-right-to-bracket"></i>
+                        <span>{{ isLoading ? 'Đang xác thực...' : 'Đăng Nhập' }}</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ==================== MODALS / CỬA SỔ NỔI ==================== -->
+
+        <!-- Modal Nhập Kho Thực Tế -->
+        <div v-if="modals.inbound" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+                <div class="bg-emerald-600 px-6 py-4 text-white flex justify-between items-center shrink-0">
+                    <h3 class="font-bold text-base sm:text-lg"><i class="fa-solid fa-box-open mr-2"></i>Nhập Kho Thực Tế</h3>
+                    <button @click="closeModal('inbound')" class="text-white hover:text-slate-200 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <form @submit.prevent="handleInboundSubmit" class="p-4 sm:p-6 space-y-4 overflow-y-auto">
+                    <!-- Thông báo trạng thái -->
+                    <div v-if="inboundStatus.visible" :class="[inboundStatus.isError ? 'text-rose-700 bg-rose-50 border-rose-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200', 'py-2 px-3 rounded-lg text-xs font-semibold text-center border transition duration-200']">
+                        {{ inboundStatus.message }}
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Tag ID</label>
+                            <input type="text" required id="inboundTagId" v-model="inboundForm.tag_id" autocomplete="off" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Bin (Vị trí)</label>
+                            <input type="text" required id="inboundBin" v-model="inboundForm.bin" list="binSuggestions" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Code (Mã hàng)</label>
+                            <input type="text" required id="inboundCode" v-model="inboundForm.code" list="codeSuggestions" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">WH (Kho)</label>
+                            <input type="text" required id="inboundWH" v-model="inboundForm.wh" list="whSuggestions" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Quality (Số lượng)</label>
+                            <input type="number" required id="inboundQuality" v-model.number="inboundForm.quality" autocomplete="off" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm">
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100 shrink-0">
+                        <button type="button" @click="closeModal('inbound')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm" :disabled="isSavingInbound">Hủy</button>
+                        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-md text-sm flex items-center space-x-1" :disabled="isSavingInbound">
+                            <i v-if="isSavingInbound" class="fa-solid fa-spinner animate-spin"></i>
+                            <span>{{ isSavingInbound ? 'Đang lưu...' : 'Xác Nhận Nhập' }}</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Nhập File Hệ Thống -->
+        <div v-if="modals.systemCsv" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+                <div class="bg-indigo-600 px-6 py-4 text-white flex justify-between items-center shrink-0">
+                    <h3 class="font-bold text-base sm:text-lg"><i class="fa-solid fa-file-invoice mr-2"></i>Nhập File Hệ Thống (CSV Nguồn)</h3>
+                    <button @click="closeModal('systemCsv')" class="text-white hover:text-slate-200 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-4 sm:p-6 space-y-4 overflow-y-auto">
+                    <div class="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200 leading-relaxed">
+                        <span class="font-bold text-slate-700 block mb-1">Cấu trúc file nguồn hệ thống nhận diện tự động:</span>
+                        <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 break-all block sm:inline">Stock Code, Warehouse, CREATEDATE, BATCH, BIN, Qty</code>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Dán nội dung văn bản CSV từ Excel:</label>
+                        <textarea v-model="systemCsvText" rows="6" placeholder="Stock Code,Warehouse,CREATEDATE,BATCH,BIN,Qty&#10;1256810001,01,6/2/2026,900002980666,,500&#10;1256810001,01,12/31/2025,900002880622,01,700" class="w-full px-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                    </div>
+                    <div class="border-t border-slate-100 pt-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 shrink-0">
+                        <div class="relative">
+                            <input type="file" id="systemCsvFileInput" accept=".csv" @change="handleSystemCSVFile" class="hidden">
+                            <button type="button" @click="document.getElementById('systemCsvFileInput').click()" class="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-lg font-semibold border border-slate-300">
+                                <i class="fa-solid fa-file-arrow-up mr-1"></i>Chọn tệp từ máy tính (.csv)
+                            </button>
+                        </div>
+                        <div class="flex space-x-2 justify-end">
+                            <button type="button" @click="closeModal('systemCsv')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold" :disabled="isSavingSystem">Hủy</button>
+                            <button type="button" @click="processSystemCSVImport" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-md flex items-center space-x-1" :disabled="isSavingSystem">
+                                <i v-if="isSavingSystem" class="fa-solid fa-spinner animate-spin"></i>
+                                <span>{{ isSavingSystem ? 'Đang nạp...' : 'Đồng bộ File Nguồn' }}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Số lượng xuất bớt (Để trống nếu xuất hết)</label>
-                    <input type="number" id="outboundQty" placeholder="Giữ nguyên xuất 1 phần & xuất hết..." class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-sm">
-                </div>
-                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100 shrink-0">
-                    <button type="button" onclick="closeModal('outboundModal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-medium shadow-md text-sm">Xác Nhận Xuất</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Nhập Nhanh CSV Thực Tế -->
-    <div id="csvImportModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col">
-            <div class="bg-indigo-600 px-6 py-4 text-white flex justify-between items-center shrink-0">
-                <h3 class="font-bold text-base sm:text-lg"><i class="fa-solid fa-file-import mr-2"></i>Nhập Nhanh Dữ Liệu bằng CSV</h3>
-                <button onclick="closeModal('csvImportModal')" class="text-white hover:text-slate-200 text-xl"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="p-4 sm:p-6 space-y-4 overflow-y-auto">
-                <div class="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200 leading-relaxed">
-                    <span class="font-bold text-slate-700 block mb-1">Định dạng mẫu dòng tiêu đề CSV bắt buộc:</span>
-                    <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 break-all block sm:inline">tag_id,bin,code,wh,quality</code>
-                    <p class="mt-2 text-rose-500 font-semibold">* Lưu ý: Hệ thống sẽ phân tách tự động bằng dấu phẩy (,).</p>
+        </div>
+
+        <!-- Modal Xuất Kho -->
+        <div v-if="modals.outbound" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+                <div class="bg-rose-600 px-6 py-4 text-white flex justify-between items-center shrink-0">
+                    <h3 class="font-bold text-base sm:text-lg"><i class="fa-solid fa-truck-ramp-box mr-2"></i>Xuất Kho Nâng Cao</h3>
+                    <button @click="closeModal('outbound')" class="text-white hover:text-slate-200 text-xl"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Dán nội dung văn bản CSV trực tiếp:</label>
-                    <textarea id="csvTextArea" rows="6" placeholder="tag_id,bin,code,wh,quality&#10;900002950009,100602,3430490101,61,500&#10;900002950010,100605,3430490102,61,250" class="w-full px-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
-                </div>
-                <div class="border-t border-slate-100 pt-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 shrink-0">
-                    <div class="relative">
-                        <input type="file" id="csvFileInput" accept=".csv" onchange="handleCSVFile(event)" class="hidden">
-                        <button type="button" onclick="document.getElementById('csvFileInput').click()" class="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-lg font-semibold border border-slate-300">
-                            <i class="fa-solid fa-file-arrow-up mr-1"></i>Chọn từ máy tính (.csv)
+                <form @submit.prevent="handleOutboundSubmit" class="p-4 sm:p-6 space-y-4 overflow-y-auto">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Chế độ xuất (Mode)</label>
+                        <select v-model="outboundForm.mode" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-sm">
+                            <option value="WO">Xuất theo lệnh sản xuất (WO)</option>
+                            <option value="YEU_CAU">Xuất phát theo phiếu yêu cầu</option>
+                            <option value="TIEU_HAO">Xuất phát vật liệu tiêu hao</option>
+                        </select>
+                    </div>
+
+                    <div v-if="outboundForm.mode === 'WO'">
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Nhập Số Lệnh WO</label>
+                        <input type="text" required v-model="outboundForm.woValue" placeholder="Nhập mã lệnh sản xuất..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Quét hoặc Nhập Tag ID</label>
+                        <div class="relative">
+                            <input type="text" required v-model="outboundForm.tag_id" placeholder="VD: 900002950002" class="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-barcode"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Số lượng xuất bớt (Để trống nếu xuất hết)</label>
+                        <input type="number" v-model.number="outboundForm.quality" placeholder="Giữ nguyên xuất 1 phần & xuất hết..." class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-sm">
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100 shrink-0">
+                        <button type="button" @click="closeModal('outbound')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm" :disabled="isSavingOutbound">Hủy</button>
+                        <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-medium shadow-md text-sm flex items-center space-x-1" :disabled="isSavingOutbound">
+                            <i v-if="isSavingOutbound" class="fa-solid fa-spinner animate-spin"></i>
+                            <span>{{ isSavingOutbound ? 'Đang thực thi...' : 'Xác Nhận Xuất' }}</span>
                         </button>
                     </div>
-                    <div class="flex space-x-2 justify-end">
-                        <button type="button" onclick="closeModal('csvImportModal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">Hủy</button>
-                        <button type="button" onclick="processCSVImport()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-md">Thực Thi Nhập</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Nhập Nhanh CSV Thực Tế -->
+        <div v-if="modals.csvImport" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+                <div class="bg-indigo-600 px-6 py-4 text-white flex justify-between items-center shrink-0">
+                    <h3 class="font-bold text-base sm:text-lg"><i class="fa-solid fa-file-import mr-2"></i>Nhập Nhanh Dữ Liệu bằng CSV</h3>
+                    <button @click="closeModal('csvImport')" class="text-white hover:text-slate-200 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-4 sm:p-6 space-y-4 overflow-y-auto">
+                    <div class="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200 leading-relaxed">
+                        <span class="font-bold text-slate-700 block mb-1">Định dạng mẫu dòng tiêu đề CSV bắt buộc:</span>
+                        <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 break-all block sm:inline">tag_id,bin,code,wh,quality</code>
+                        <p class="mt-2 text-rose-500 font-semibold">* Lưu ý: Hệ thống sẽ phân tách tự động bằng dấu phẩy (,).</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Dán nội dung văn bản CSV trực tiếp:</label>
+                        <textarea v-model="csvImportText" rows="6" placeholder="tag_id,bin,code,wh,quality&#10;900002950009,100602,3430490101,61,500&#10;900002950010,100605,3430490102,61,250" class="w-full px-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                    </div>
+                    <div class="border-t border-slate-100 pt-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 shrink-0">
+                        <div class="relative">
+                            <input type="file" id="csvFileInput" accept=".csv" @change="handleCSVFile" class="hidden">
+                            <button type="button" @click="document.getElementById('csvFileInput').click()" class="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-lg font-semibold border border-slate-300">
+                                <i class="fa-solid fa-file-arrow-up mr-1"></i>Chọn từ máy tính (.csv)
+                            </button>
+                        </div>
+                        <div class="flex space-x-2 justify-end">
+                            <button type="button" @click="closeModal('csvImport')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold" :disabled="isSavingCsv">Hủy</button>
+                            <button type="button" @click="processCSVImport" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-md flex items-center space-x-1" :disabled="isSavingCsv">
+                                <i v-if="isSavingCsv" class="fa-solid fa-spinner animate-spin"></i>
+                                <span>{{ isSavingCsv ? 'Đang thực thi...' : 'Thực Thi Nhập' }}</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- ==================== POPUP MODAL CHỈNH SỬA CHI TIẾT (BẢNG NỔI TĂNG ĐỘ NHẬN DIỆN) ==================== -->
+        <div v-if="modals.edit" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col transform transition-all duration-300">
+                <div class="bg-blue-600 px-6 py-4 text-white flex justify-between items-center shrink-0">
+                    <h3 class="font-bold text-base sm:text-lg"><i class="fa-solid fa-pen-to-square mr-2"></i>CHỈNH SỬA DỮ LIỆU TỒN KHO THỰC TẾ</h3>
+                    <button @click="closeModal('edit')" class="text-white hover:text-slate-200 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <form @submit.prevent="handleEditSubmit" class="p-4 sm:p-6 space-y-4 overflow-y-auto">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="col-span-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs text-slate-500 font-semibold flex justify-between">
+                            <span>Đang chỉnh sửa dòng ID:</span>
+                            <span class="font-mono text-slate-800">#{{ editForm.id }}</span>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tag ID</label>
+                            <input type="text" required v-model="editForm.tag_id" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-semibold text-slate-800">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Bin (Vị trí)</label>
+                            <input type="text" required v-model="editForm.bin" list="binSuggestions" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Code (Mã hàng)</label>
+                            <input type="text" required v-model="editForm.code" list="codeSuggestions" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">WH (Kho)</label>
+                            <input type="text" required v-model="editForm.wh" list="whSuggestions" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Quality (Số lượng)</label>
+                            <input type="number" required v-model.number="editForm.quality" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-bold text-blue-600">
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100 shrink-0">
+                        <button type="button" @click="closeModal('edit')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold" :disabled="isSavingEdit">Hủy</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-md flex items-center space-x-1" :disabled="isSavingEdit">
+                            <i v-if="isSavingEdit" class="fa-solid fa-spinner animate-spin"></i>
+                            <span>{{ isSavingEdit ? 'Đang lưu...' : 'Lưu Thay Đổi' }}</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Datalists dynamic gợi ý -->
+        <datalist id="binSuggestions">
+            <option v-for="bin in uniqueBins" :key="bin" :value="bin"></option>
+        </datalist>
+        <datalist id="codeSuggestions">
+            <option v-for="code in uniqueCodes" :key="code" :value="code"></option>
+        </datalist>
+        <datalist id="whSuggestions">
+            <option v-for="wh in uniqueWHs" :key="wh" :value="wh"></option>
+        </datalist>
+
     </div>
 
     <!-- Script điều khiển chính -->
     <script>
-        // --- 1. KẾT NỐI SUPABASE CHÍNH THỨC ---
         const SUPABASE_URL = 'https://ayxhdqaendspvdxibayh.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5eGhkcWFlbmRzcHZkeGliYXloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NDAzMDQsImV4cCI6MjA5NTUxNjMwNH0.MOmERW-oVJitj6fAB85439_nxqeyYMQhQ5rYr8TF-Fc';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        let inventoryData = [];
-        let systemInventoryData = []; 
-        let comparisonData = [];       // Dữ liệu phân tích đồng bộ từ View
-        let filteredComparisonData = []; // Dữ liệu so sánh chênh lệch đã lọc
-        let filteredData = [];       
-        let logData = [];           
-        let currentUser = null;       // Đối tượng user đăng nhập hiện tại
-        let currentRole = "Viewer";   // Vai trò mặc định ban đầu
-        let currentDisplayName = "Guest"; // Tên hiển thị người thực hiện
-        let isEditMode = false;       // BIẾN ĐÃ ĐƯỢC BỔ SUNG ĐẦY ĐỦ
-        let editingRowId = null;      // BIẾN ĐÃ ĐƯỢC BỔ SUNG ĐẦY ĐỦ
-        let mainChart = null;
 
-        // --- HÀM KHÔI PHỤC ZOOM CHO BIỂU ĐỒ ---
-        function resetZoomAndPan() {
-            if (mainChart) {
-                mainChart.resetZoom();
-            }
-        }
+        const { createApp } = Vue;
 
-        // --- KIỂM TRA TRẠNG THÁI ĐĂNG NHẬP ---
-        async function checkLoginState() {
-            const savedUser = localStorage.getItem('loggedInUser') || sessionStorage.getItem('loggedInUser');
-            if (savedUser) {
-                try {
-                    currentUser = JSON.parse(savedUser);
-                    currentRole = currentUser.role;
-                    currentDisplayName = currentUser.display_name;
-                    
-                    // Cập nhật giao diện thông tin User ở góc phải
-                    document.getElementById('userDisplayName').innerText = currentDisplayName;
-                    document.getElementById('userRoleBadge').innerText = currentRole;
-                    document.getElementById('userAvatar').innerText = currentDisplayName.charAt(0).toUpperCase();
-                    
-                    // Ẩn màn hình đăng nhập
-                    document.getElementById('loginScreen').classList.add('hidden');
-                    
-                    // Khởi chạy đồng bộ dữ liệu
-                    await fetchFromSupabase();
-                    await fetchLogsFromSupabase();
-                    applyRolePermissions();
-                } catch (e) {
-                    console.error("Lỗi parse thông tin đăng nhập: ", e);
-                    showLoginScreen();
+        createApp({
+            data() {
+                return {
+                    // Auth state
+                    currentUser: null,
+                    currentRole: 'Viewer',
+                    currentDisplayName: 'Guest',
+                    loginUsername: '',
+                    loginPassword: '',
+                    rememberMe: false,
+                    loginErrorMessage: '',
+                    isLoading: false,
+
+                    // Action state loaders (chống double-click)
+                    isSavingInbound: false,
+                    isSavingOutbound: false,
+                    isSavingEdit: false,
+                    isSavingSystem: false,
+                    isSavingCsv: false,
+
+                    // Data Storage
+                    inventoryData: [],
+                    systemInventoryData: [],
+                    comparisonData: [],
+                    logData: [],
+
+                    // Filtering & Pagination
+                    smartFilter: '',
+                    logFilter: '',
+                    inventoryCurrentPage: 1,
+                    inventoryPerPage: 50,
+
+                    // Modals control
+                    modals: {
+                        inbound: false,
+                        systemCsv: false,
+                        outbound: false,
+                        csvImport: false,
+                        edit: false
+                    },
+
+                    // Inbound Form
+                    inboundForm: {
+                        tag_id: '',
+                        bin: '',
+                        code: '',
+                        wh: '',
+                        quality: ''
+                    },
+                    inboundStatus: {
+                        message: '',
+                        isError: false,
+                        visible: false
+                    },
+
+                    // Outbound Form
+                    outboundForm: {
+                        mode: 'WO',
+                        woValue: '',
+                        tag_id: '',
+                        quality: ''
+                    },
+
+                    // CSV inputs
+                    systemCsvText: '',
+                    csvImportText: '',
+
+                    // Edit Row Modal Form
+                    editForm: {
+                        id: null,
+                        tag_id: '',
+                        bin: '',
+                        code: '',
+                        wh: '',
+                        quality: 0
+                    },
+
+                    mainChart: null
                 }
-            } else {
-                showLoginScreen();
-            }
-        }
-
-        function showLoginScreen() {
-            document.getElementById('loginScreen').classList.remove('hidden');
-        }
-
-        // --- XỬ LÝ ĐĂNG NHẬP (ĐÃ ĐƯỢC CẬP NHẬT TRÁNH LỖI PHÂN BIỆT CHỮ HOA/THƯỜNG) ---
-        async function handleLoginSubmit(e) {
-            e.preventDefault();
-            // Loại bỏ .toLowerCase() để lưu giữ ký tự hoa/thường người dùng chủ động gõ
-            const usernameInput = document.getElementById('loginUsername').value.trim();
-            const passwordInput = document.getElementById('loginPassword').value;
-            const rememberMe = document.getElementById('rememberMe').checked;
-            const errorDiv = document.getElementById('loginErrorMessage');
-            const btnSubmit = document.getElementById('btnLoginSubmit');
-
-            errorDiv.classList.add('hidden');
-            btnSubmit.disabled = true;
-            btnSubmit.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> <span>Đang xác thực...</span>`;
-
-            try {
-                // Sử dụng truy vấn .ilike() thay vì .eq() trên cột username 
-                // để hệ thống không phân biệt chữ hoa, chữ thường khi đăng nhập.
-                const { data, error } = await supabaseClient
-                    .from('app_users')
-                    .select('*')
-                    .ilike('username', usernameInput)
-                    .eq('password', passwordInput)
-                    .maybeSingle();
-
-                if (error) throw error;
-
-                if (!data) {
-                    errorDiv.innerText = "Tên đăng nhập hoặc mật khẩu không chính xác.";
-                    errorDiv.classList.remove('hidden');
-                    return;
-                }
-
-                // Thiết lập phiên đăng nhập mới
-                currentUser = data;
-                currentRole = data.role;
-                currentDisplayName = data.display_name;
-
-                // Lưu trạng thái đăng nhập
-                const userString = JSON.stringify(currentUser);
-                if (rememberMe) {
-                    localStorage.setItem('loggedInUser', userString);
-                } else {
-                    sessionStorage.setItem('loggedInUser', userString);
-                }
-
-                // Cập nhật thông tin góc phải
-                document.getElementById('userDisplayName').innerText = currentDisplayName;
-                document.getElementById('userRoleBadge').innerText = currentRole;
-                document.getElementById('userAvatar').innerText = currentDisplayName.charAt(0).toUpperCase();
-
-                // Ẩn màn hình đăng nhập và tải tài nguyên
-                document.getElementById('loginScreen').classList.add('hidden');
-                await fetchFromSupabase();
-                await fetchLogsFromSupabase();
-                applyRolePermissions();
-
-            } catch (err) {
-                console.error("Lỗi đăng nhập: ", err);
-                errorDiv.innerText = "Lỗi xác thực: " + err.message;
-                errorDiv.classList.remove('hidden');
-            } finally {
-                btnSubmit.disabled = false;
-                btnSubmit.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> <span>Đăng Nhập</span>`;
-            }
-        }
-
-        // --- XỬ LÝ ĐĂNG XUẤT ---
-        function handleLogout() {
-            localStorage.removeItem('loggedInUser');
-            sessionStorage.removeItem('loggedInUser');
-            currentUser = null;
-            currentRole = "Viewer";
-            currentDisplayName = "Viewer";
-            
-            // Xóa sạch dữ liệu cục bộ nhằm bảo mật phiên làm việc trước
-            inventoryData = [];
-            systemInventoryData = [];
-            comparisonData = [];
-            filteredData = [];
-            filteredComparisonData = [];
-            logData = [];
-            
-            // Làm sạch ô nhập liệu và hiển thị lại màn hình login
-            document.getElementById('loginUsername').value = '';
-            document.getElementById('loginPassword').value = '';
-            document.getElementById('loginErrorMessage').classList.add('hidden');
-            showLoginScreen();
-        }
-
-        // --- 2. ĐỒNG BỘ DỮ LIỆU TỪ SUPABASE ---
-        async function fetchFromSupabase() {
-            try {
-                // Tải bảng Tồn kho Thực tế (inventory)
-                const { data: invData, error: invErr } = await supabaseClient
-                    .from('inventory') 
-                    .select('*')
-                    .order('id', { ascending: false });
-                if (invErr) throw invErr;
-                inventoryData = invData || [];
-
-                // Tải bảng File Nguồn Hệ thống (system_inventory)
-                const { data: sysData, error: sysErr } = await supabaseClient
-                    .from('system_inventory')
-                    .select('*')
-                    .order('id', { ascending: false });
-                if (sysErr) throw sysErr;
-                systemInventoryData = sysData || [];
-
-                // Tải bảng đối chiếu chênh lệch trực tiếp từ View public.v_inventory_comparison
-                const { data: compData, error: compErr } = await supabaseClient
-                    .from('v_inventory_comparison')
-                    .select('*');
-                if (compErr) throw compErr;
-
-                // LỌC CHỈ LẤY CÁC DÒNG CÓ THỰC TẾ (actual_qty > 0) ĐỂ SO SÁNH VỚI HỆ THỐNG
-                comparisonData = (compData || []).filter(item => Number(item.actual_qty || 0) > 0);
-
-                // Khởi tạo trạng thái đồng bộ ban đầu
-                filteredData = [...inventoryData];
-                filteredComparisonData = [...comparisonData]; 
-                
-                renderTable();
-                updateStats();
-                updatePivotTable();
-                updateChart(); 
-                updateInputSuggestions(); // Cập nhật gợi ý Code, Bin, WH
-            } catch (err) {
-                console.error("Lỗi đồng bộ dữ liệu Supabase: ", err);
-                alert("Không thể tải dữ liệu từ cơ sở dữ liệu: " + err.message);
-            }
-        }
-
-        async function fetchLogsFromSupabase() {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('ghilog')
-                    .select('*')
-                    .order('id', { ascending: false }); 
-                
-                if (error) throw error;
-                logData = data || [];
-                renderLogsTable();
-            } catch (err) {
-                console.error("Lỗi đồng bộ dữ liệu ghilog: ", err);
-            }
-        }
-
-        // --- Khởi tạo ứng dụng ---
-        window.addEventListener('DOMContentLoaded', async () => {
-            initChart();
-            setupInboundKeyNavigation(); // Khởi chạy cơ chế tự động chuyển ô (Enter Loop)
-            await checkLoginState(); // Tiến hành kiểm tra và khởi tạo đăng nhập trước
-        });
-
-        function applyRolePermissions() {
-            const btnOpenInbound = document.getElementById('btnOpenInbound');
-            const btnOpenSystemInbound = document.getElementById('btnOpenSystemInbound');
-            const btnOpenOutbound = document.getElementById('btnOpenOutbound');
-            const btnImportCsv = document.getElementById('btnImportCsv');
-            
-            if (currentRole === "Admin") {
-                btnOpenInbound.classList.remove('hidden');
-                btnOpenSystemInbound.classList.remove('hidden');
-                btnOpenOutbound.classList.remove('hidden');
-                btnImportCsv.classList.remove('hidden');
-                document.getElementById('colActionHeader').style.display = "";
-            } else if (currentRole === "Operator") {
-                btnOpenInbound.classList.remove('hidden');
-                btnOpenSystemInbound.classList.remove('hidden');
-                btnOpenOutbound.classList.remove('hidden');
-                btnImportCsv.classList.add('hidden');
-                document.getElementById('colActionHeader').style.display = "none";
-            } else { 
-                btnOpenInbound.classList.add('hidden');
-                btnOpenSystemInbound.classList.add('hidden');
-                btnOpenOutbound.classList.add('hidden');
-                btnImportCsv.classList.add('hidden');
-                document.getElementById('colActionHeader').style.display = "none";
-            }
-            renderTable();
-        }
-
-        // --- 4. GHI LOG HOẠT ĐỘNG ---
-        async function logActivity(actionType, tagId, code, bin, wh, quality, details) {
-            try {
-                const { error } = await supabaseClient
-                    .from('ghilog')
-                    .insert([{
-                        username: currentDisplayName, // GHI NHẬN CHÍNH XÁC DISPLAY NAME CỦA USER VÀO CỘT NGƯỜI THỰC HIỆN
-                        action_type: actionType,
-                        tag_id: tagId,
-                        code: code,
-                        bin: bin,
-                        wh: wh,
-                        quality: quality,
-                        details: details
-                    }]);
-                if (error) throw error;
-                await fetchLogsFromSupabase(); 
-            } catch (err) {
-                console.error("Lỗi ghi Log: ", err.message);
-            }
-        }
-
-        function getActionBadge(action) {
-            switch(action) {
-                case 'NHAP_KHO':
-                    return '<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-md font-semibold text-xs inline-flex items-center"><i class="fa-solid fa-arrow-down-long mr-1"></i>Nhập Kho</span>';
-                case 'XUAT_WO':
-                    return '<span class="bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-md font-semibold text-xs inline-flex items-center"><i class="fa-solid fa-industry mr-1"></i>Xuất WO</span>';
-                case 'XUAT_YEU_CAU':
-                    return '<span class="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-md font-semibold text-xs inline-flex items-center"><i class="fa-solid fa-file-signature mr-1"></i>Xuất Yêu Cầu</span>';
-                case 'XUAT_TIEU_HAO':
-                    return '<span class="bg-orange-50 text-orange-700 border border-orange-200 px-2.5 py-1 rounded-md font-semibold text-xs inline-flex items-center"><i class="fa-solid fa-wrench mr-1"></i>Vật liệu tiêu hao</span>';
-                case 'CHINH_SUA':
-                    return '<span class="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-md font-semibold text-xs inline-flex items-center"><i class="fa-solid fa-pen-to-square mr-1"></i>Chỉnh Sửa</span>';
-                case 'IMPORT_CSV':
-                    return '<span class="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-md font-semibold text-xs inline-flex items-center"><i class="fa-solid fa-file-csv mr-1"></i>Import CSV</span>';
-                default:
-                    return `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-xs font-semibold">${action}</span>`;
-            }
-        }
-
-        // --- CẬP NHẬT 5 THÈ KPI SO SÁNH ĐỒNG BỘ ---
-        function updateStats() {
-            // Thẻ 1: Dòng Thực Tế
-            document.getElementById('statTotalRows').innerText = filteredData.length;
-            
-            // Thẻ 2: Lượng Thực Tế
-            const totalQuality = filteredData.reduce((acc, curr) => acc + Number(curr.quality || 0), 0);
-            document.getElementById('statTotalQuality').innerText = totalQuality.toLocaleString('vi-VN');
-            
-            // Thẻ 3: Số mã hàng hệ thống có trong bảng so sánh
-            const uniqueCodes = [...new Set(filteredData.map(item => item.code))].length;
-            document.getElementById('statSystemRows').innerText = uniqueCodes;
-
-            // Thẻ 4: Lượng Hệ Thống
-            const totalSystemQuality = filteredComparisonData.reduce((acc, curr) => acc + Number(curr.system_qty || 0), 0);
-            document.getElementById('statSystemQuality').innerText = totalSystemQuality.toLocaleString('vi-VN');
-
-            // Thẻ 5: Tổng lượng chênh lệch (Thực tế trừ Hệ thống)
-            const totalVarianceQty = totalQuality - totalSystemQuality;
-            const statTotalVariance = document.getElementById('statTotalVariance');
-            statTotalVariance.innerText = totalVarianceQty.toLocaleString('vi-VN');
-
-            // Cập nhật linh hoạt màu sắc hiển thị dựa trên giá trị âm/dương
-            if (totalVarianceQty < 0) {
-                statTotalVariance.className = "text-lg sm:text-xl font-bold text-rose-600 mt-1";
-            } else if (totalVarianceQty > 0) {
-                statTotalVariance.className = "text-lg sm:text-xl font-bold text-emerald-600 mt-1";
-            } else {
-                statTotalVariance.className = "text-lg sm:text-xl font-bold text-slate-600 mt-1";
-            }
-        }
-
-        // --- KHỞI TẠO BIỂU ĐỒ NATIVE SỬ DỤNG PLUGIN ZOOM TRÊN TRỤC X ---
-        function initChart() {
-            const ctx = document.getElementById('comparisonChart').getContext('2d');
-            mainChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: 'Thực Tế (Actual)',
-                            data: [],
-                            backgroundColor: '#10b981', // THỰC TẾ MÀU XANH LÁ
-                            borderColor: '#059669',
-                            borderWidth: 1,
-                            borderRadius: 4
-                        },
-                        {
-                            label: 'Hệ Thống (System)',
-                            data: [],
-                            backgroundColor: '#ef4444', // HỆ THỐNG MÀU ĐỎ
-                            borderColor: '#dc2626',
-                            borderWidth: 1,
-                            borderRadius: 4
-                        }
-                    ]
+            },
+            computed: {
+                filteredInventory() {
+                    if (!this.smartFilter) return this.inventoryData;
+                    const query = this.smartFilter.toLowerCase().trim();
+                    return this.inventoryData.filter(item => {
+                        return (item.code || '').toLowerCase().includes(query) ||
+                               (item.bin || '').toLowerCase().includes(query) ||
+                               (item.wh || '').toLowerCase().includes(query) ||
+                               (item.tag_id || '').toLowerCase().includes(query);
+                    });
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                        duration: 800,
-                        easing: 'easeOutQuart'
+                totalInventoryPages() {
+                    return Math.ceil(this.filteredInventory.length / this.inventoryPerPage) || 1;
+                },
+                paginatedInventory() {
+                    const startIndex = (this.inventoryCurrentPage - 1) * this.inventoryPerPage;
+                    const endIndex = startIndex + this.inventoryPerPage;
+                    return this.filteredInventory.slice(startIndex, endIndex);
+                },
+                filteredComparisonData() {
+                    if (!this.smartFilter) return this.comparisonData;
+                    const query = this.smartFilter.toLowerCase().trim();
+                    return this.comparisonData.filter(item => {
+                        return (item.code || '').toLowerCase().includes(query);
+                    });
+                },
+                filteredLogs() {
+                    if (!this.logFilter) return this.logData;
+                    const query = this.logFilter.toLowerCase().trim();
+                    return this.logData.filter(log => {
+                        return (log.action_type || '').toLowerCase().includes(query) ||
+                               (log.code || '').toLowerCase().includes(query) ||
+                               (log.tag_id || '').toLowerCase().includes(query) ||
+                               (log.bin || '').toLowerCase().includes(query) ||
+                               (log.username || '').toLowerCase().includes(query) ||
+                               (log.details || '').toLowerCase().includes(query);
+                    });
+                },
+                // KPI Metrics
+                totalQuality() {
+                    return this.filteredInventory.reduce((acc, curr) => acc + Number(curr.quality || 0), 0);
+                },
+                totalSystemQuality() {
+                    return this.filteredComparisonData.reduce((acc, curr) => acc + Number(curr.system_qty || 0), 0);
+                },
+                uniqueCodesCount() {
+                    return [...new Set(this.filteredInventory.map(item => item.code))].length;
+                },
+                totalVarianceQty() {
+                    return this.totalQuality - this.totalSystemQuality;
+                },
+                // Gợi ý cho form
+                uniqueCodes() {
+                    return [...new Set(this.inventoryData.map(item => item.code).filter(c => c))];
+                },
+                uniqueBins() {
+                    return [...new Set(this.inventoryData.map(item => item.bin).filter(b => b))];
+                },
+                uniqueWHs() {
+                    return [...new Set(this.inventoryData.map(item => item.wh).filter(w => w))];
+                }
+            },
+            watch: {
+                // Tự động vẽ lại biểu đồ khi dữ liệu đối chiếu thay đổi mà không cần tải lại trang
+                filteredComparisonData: {
+                    handler() {
+                        this.updateChart();
                     },
-                    plugins: {
-                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 9 } } },
-                        zoom: {
-                            pan: {
-                                enabled: true,
-                                mode: 'x', // Chỉ kéo di chuyển sang hai bên theo trục X
-                            },
-                            zoom: {
-                                wheel: {
-                                    enabled: true, // Cuộn chuột trực tiếp trên biểu đồ để thu phóng cột
-                                },
-                                pinch: {
-                                    enabled: true // Hỗ trợ nhúm ngón tay zoom trên điện thoại
-                                },
-                                mode: 'x', // Chỉ thu nhỏ phóng to chiều rộng các cột (Trục X) để chỉ số không bị mờ
+                    deep: true
+                },
+                // Đưa trang hiển thị về trang 1 khi lọc
+                smartFilter() {
+                    this.inventoryCurrentPage = 1;
+                }
+            },
+            mounted() {
+                this.initChart();
+                this.checkLoginState();
+                this.setupInboundKeyNavigation();
+            },
+            methods: {
+                // Phân trang tự động để lấy sạch dữ liệu quá 1000 dòng từ Supabase
+                async fetchAllRows(tableName) {
+                    let allData = [];
+                    let page = 0;
+                    const pageSize = 1000;
+                    let hasMore = true;
+                    
+                    while (hasMore) {
+                        const { data, error } = await supabaseClient
+                            .from(tableName)
+                            .select('*')
+                            .range(page * pageSize, (page + 1) * pageSize - 1)
+                            .order('id', { ascending: false });
+                            
+                        if (error) throw error;
+                        if (data && data.length > 0) {
+                            allData = allData.concat(data);
+                            if (data.length < pageSize) {
+                                hasMore = false;
+                            } else {
+                                page++;
                             }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            ticks: {
-                                maxRotation: 90,
-                                minRotation: 45,
-                                font: { size: 9 }
-                            }
-                        },
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            grid: { color: 'rgba(226, 232, 240, 0.5)' },
-                            title: { display: true, text: 'Tổng sản lượng tồn kho', font: { size: 9 } }
+                        } else {
+                            hasMore = false;
                         }
                     }
-                }
-            });
-        }
-
-        // --- CẬP NHẬT BIỂU ĐỒ ĐỒNG BỘ THEO DỮ LIỆU VIEW PHÂN TÍCH ---
-        function updateChart() {
-            if (!mainChart) return;
-
-            const labels = filteredComparisonData.map(item => item.code);
-            const actualDataset = filteredComparisonData.map(item => Number(item.actual_qty || 0));
-            const systemDataset = filteredComparisonData.map(item => Number(item.system_qty || 0));
-
-            mainChart.data.labels = labels;
-            mainChart.data.datasets[0].data = actualDataset;
-            mainChart.data.datasets[1].data = systemDataset;
-            mainChart.update(); 
-        }
-
-        // --- ĐỒNG BỘ BẢNG PIVOT ĐỐI CHIẾU LẤY DỮ LIỆU TỪ VIEW SUPABASE ---
-        function updatePivotTable() {
-            const pivotBody = document.getElementById('pivotTableBody');
-            pivotBody.innerHTML = '';
-
-            let index = 1;
-            filteredComparisonData.forEach(item => {
-                const code = item.code;
-                const actQty = Number(item.actual_qty || 0);
-                const sysQty = Number(item.system_qty || 0);
-                const variance = Number(item.variance || 0);
-
-                let statusBadge = '';
-                if (variance === 0) {
-                    statusBadge = '<span class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">Khớp</span>';
-                } else if (variance > 0) {
-                    statusBadge = '<span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200 text-[10px]">Dư Thực Tế</span>';
-                } else {
-                    statusBadge = '<span class="bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200 text-[10px]">Thiếu hụt</span>';
-                }
-
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition duration-150";
-                tr.innerHTML = `
-                    <td class="py-2.5 px-4 text-slate-400 font-mono">${index++}</td>
-                    <td class="py-2.5 px-4 font-bold text-slate-800">${code}</td>
-                    <td class="py-2.5 px-4 text-right font-semibold">${actQty.toLocaleString('vi-VN')}</td>
-                    <td class="py-2.5 px-4 text-right font-semibold text-slate-500">${sysQty.toLocaleString('vi-VN')}</td>
-                    <td class="py-2.5 px-4 text-right font-bold font-mono ${variance === 0 ? 'text-emerald-600' : (variance > 0 ? 'text-amber-600' : 'text-rose-600')}">
-                        ${variance > 0 ? '+' : ''}${variance.toLocaleString('vi-VN')}
-                    </td>
-                    <td class="py-2.5 px-4 text-center font-semibold">${statusBadge}</td>
-                `;
-                pivotBody.appendChild(tr);
-            });
-
-            if (filteredComparisonData.length === 0) {
-                pivotBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-400">Không có dữ liệu đối chiếu Pivot</td></tr>`;
-            }
-        }
-
-        // --- TẠO VÀ CẬP NHẬT CÁC GỢI Ý (CHỈ CODE, BIN VÀ WH) ---
-        function updateInputSuggestions() {
-            // 1. Gợi ý Mã hàng (Code)
-            const codeDatalist = document.getElementById('codeSuggestions');
-            if (codeDatalist) {
-                codeDatalist.innerHTML = '';
-                const uniqueCodes = [...new Set(inventoryData.map(item => item.code).filter(c => c))];
-                uniqueCodes.forEach(code => {
-                    const option = document.createElement('option');
-                    option.value = code;
-                    codeDatalist.appendChild(option);
-                });
-            }
-
-            // 2. Gợi ý Vị trí (Bin)
-            const binDatalist = document.getElementById('binSuggestions');
-            if (binDatalist) {
-                binDatalist.innerHTML = '';
-                const uniqueBins = [...new Set(inventoryData.map(item => item.bin).filter(b => b))];
-                uniqueBins.forEach(bin => {
-                    const option = document.createElement('option');
-                    option.value = bin;
-                    binDatalist.appendChild(option);
-                });
-            }
-
-            // 3. Gợi ý Kho (WH)
-            const whDatalist = document.getElementById('whSuggestions');
-            if (whDatalist) {
-                whDatalist.innerHTML = '';
-                const uniqueWHs = [...new Set(inventoryData.map(item => item.wh).filter(w => w))];
-                uniqueWHs.forEach(wh => {
-                    const option = document.createElement('option');
-                    option.value = wh;
-                    whDatalist.appendChild(option);
-                });
-            }
-        }
-
-        // --- HIỂN THỊ BẢNG TỒN KHỎ THỰC TẾ ---
-        function renderTable() {
-            const tbody = document.getElementById('inventoryTableBody');
-            tbody.innerHTML = '';
-
-            filteredData.forEach((item) => {
-                const dateFormatted = new Date(item.created_at).toLocaleString('vi-VN');
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition duration-150";
-
-                const showActionCell = (currentRole === "Admin");
-
-                if (isEditMode && editingRowId === item.id) {
-                    tr.innerHTML = `
-                        <td class="py-3 px-6 text-slate-400 font-semibold font-mono">${item.id}</td>
-                        <td class="py-3 px-6 text-slate-500">${dateFormatted}</td>
-                        <td class="py-3 px-6"><input type="text" id="edit_tag_id" value="${item.tag_id || ''}" class="w-full px-2 py-1 border border-blue-400 rounded focus:outline-none text-xs"></td>
-                        <td class="py-3 px-6"><input type="text" id="edit_bin" value="${item.bin || ''}" class="w-full px-2 py-1 border border-blue-400 rounded focus:outline-none text-xs"></td>
-                        <td class="py-3 px-6"><input type="text" id="edit_code" value="${item.code || ''}" class="w-full px-2 py-1 border border-blue-400 rounded focus:outline-none text-xs"></td>
-                        <td class="py-3 px-6"><input type="text" id="edit_wh" value="${item.wh || ''}" class="w-full px-2 py-1 border border-blue-400 rounded focus:outline-none text-xs"></td>
-                        <td class="py-3 px-6"><input type="number" id="edit_quality" value="${item.quality || 0}" class="w-full px-2 py-1 border border-blue-400 rounded text-right focus:outline-none text-xs"></td>
-                        <td class="py-3 px-6 text-center space-x-1">
-                            <button onclick="saveRowChanges(${item.id})" class="bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1 rounded text-xs"><i class="fa-solid fa-check"></i></button>
-                            <button onclick="cancelRowEdit()" class="bg-slate-300 hover:bg-slate-400 text-slate-700 px-2 py-1 rounded text-xs"><i class="fa-solid fa-xmark"></i></button>
-                        </td>
-                    `;
-                } else {
-                    tr.innerHTML = `
-                        <td class="py-3.5 px-6 font-semibold font-mono text-slate-500">${item.id}</td>
-                        <td class="py-3.5 px-6 text-slate-500">${dateFormatted}</td>
-                        <td class="py-3.5 px-6 font-medium text-slate-900">${item.tag_id || ''}</td>
-                        <td class="py-3.5 px-6"><span class="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-md text-xs font-semibold border border-indigo-100">${item.bin || ''}</span></td>
-                        <td class="py-3.5 px-6 font-medium text-slate-700">${item.code || ''}</td>
-                        <td class="py-3.5 px-6 text-slate-600">${item.wh || ''}</td>
-                        <td class="py-3.5 px-6 text-right font-bold text-slate-900">${Number(item.quality || 0).toLocaleString('vi-VN')}</td>
-                        <td class="py-3.5 px-6 text-center" style="${showActionCell ? '' : 'display: none;'}">
-                            <button onclick="startRowEdit(${item.id})" class="text-blue-600 hover:text-blue-800 font-semibold text-xs inline-flex items-center space-x-1">
-                                <i class="fa-solid fa-pen"></i> <span>Sửa dòng</span>
-                            </button>
-                        </td>
-                    `;
-                }
-                tbody.appendChild(tr);
-            });
-        }
-
-        // --- RENDER BẢNG NHẬT KÝ HOẠT ĐỘNG (TABLE GHILOG) ---
-        function renderLogsTable() {
-            const tbody = document.getElementById('logsTableBody');
-            tbody.innerHTML = '';
-
-            logData.forEach((log) => {
-                const dateFormatted = new Date(log.created_at).toLocaleString('vi-VN');
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition duration-150";
-
-                tr.innerHTML = `
-                    <td class="py-3 px-4 font-semibold font-mono text-slate-500">${log.id}</td>
-                    <td class="py-3 px-4 text-slate-500 whitespace-nowrap">${dateFormatted}</td>
-                    <td class="py-3 px-4 font-bold text-indigo-600">${log.username || 'System'}</td>
-                    <td class="py-3 px-4 whitespace-nowrap">${getActionBadge(log.action_type)}</td>
-                    <td class="py-3 px-4 font-mono font-semibold text-slate-800">${log.tag_id || ''}</td>
-                    <td class="py-3 px-4 font-medium text-slate-600">${log.code || ''}</td>
-                    <td class="py-3 px-4"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs">${log.bin || ''}</span></td>
-                    <td class="py-3 px-4 text-slate-500">${log.wh || ''}</td>
-                    <td class="py-3 px-4 text-right font-bold text-slate-900">${log.quality ? Number(log.quality).toLocaleString('vi-VN') : ''}</td>
-                    <td class="py-3 px-4 text-slate-500 max-w-xs truncate" title="${log.details || ''}">${log.details || ''}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            if (logData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="py-4 text-center text-slate-400">Không có nhật ký hoạt động nào</td></tr>`;
-            }
-        }
-
-        // --- ĐỒNG BỘ BỘ LỌC THÔNG MINH CHO CẢ 2 BẢNG THỰC TẾ & HỆ THỐNG ---
-        function applyFilters() {
-            const query = document.getElementById('smartFilter').value.toLowerCase().trim();
-
-            // Lọc dữ liệu Thực tế hiển thị bảng
-            filteredData = inventoryData.filter(item => {
-                const matchCode = (item.code || '').toLowerCase().includes(query);
-                const matchBin = (item.bin || '').toLowerCase().includes(query);
-                const matchWH = (item.wh || '').toLowerCase().includes(query);
-                const matchTag = (item.tag_id || '').toLowerCase().includes(query);
-                return matchCode || matchBin || matchWH || matchTag;
-            });
-
-            // Lọc bảng phân tích đối chiếu chênh lệch đồng bộ lấy từ nguồn đã lọc trước đó (actual_qty > 0)
-            filteredComparisonData = comparisonData.filter(item => {
-                return (item.code || '').toLowerCase().includes(query);
-            });
-
-            renderTable();
-            updateStats();
-            updatePivotTable();
-            updateChart(); 
-        }
-
-        // --- ĐIỀU KHIỂN CHỈNH SỬA THEO TỪNG DÒNG ---
-        function startRowEdit(id) {
-            isEditMode = true;
-            editingRowId = id;
-            renderTable();
-        }
-
-        // --- HỦY CHỈNH SỬA ---
-        function cancelRowEdit() {
-            isEditMode = false;
-            editingRowId = null;
-            renderTable();
-        }
-
-        async function saveRowChanges(id) {
-            const tag_id = document.getElementById('edit_tag_id').value.trim();
-            const bin = document.getElementById('edit_bin').value.trim();
-            const code = document.getElementById('edit_code').value.trim();
-            const wh = document.getElementById('edit_wh').value.trim();
-            const quality = Number(document.getElementById('edit_quality').value);
-
-            try {
-                const { error } = await supabaseClient
-                    .from('inventory')
-                    .update({ tag_id, bin, code, wh, quality })
-                    .eq('id', id);
-                
-                if (error) throw error;
-
-                await logActivity('CHINH_SUA', tag_id, code, bin, wh, quality, `Sửa trực tiếp bản ghi ID: ${id}`);
-
-                isEditMode = false;
-                editingRowId = null;
-                alert('Đã cập nhật dòng dữ liệu thành công!');
-                await fetchFromSupabase(); 
-            } catch (err) {
-                console.error("Lỗi cập nhật dòng: ", err);
-                alert("Cập nhật dòng thất bại: " + err.message);
-            }
-        }
-
-        // --- ĐÓNG MỞ CỬA SỔ NỔI ---
-        function openModal(id) {
-            const modal = document.getElementById(id);
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                modal.querySelector('.transform').classList.remove('scale-95');
-                
-                // Tự động đưa con trỏ chuột vào ô Tag ID khi mở Modal Nhập kho
-                if (id === 'inboundModal') {
-                    const tagIdInput = document.getElementById('inboundTagId');
-                    if (tagIdInput) tagIdInput.focus();
-                }
-            }, 10);
-        }
-
-        function closeModal(id) {
-            const modal = document.getElementById(id);
-            modal.classList.add('opacity-0');
-            modal.querySelector('.transform').classList.add('scale-95');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 300);
-        }
-
-        // --- THIẾT LẬP PHÍM ENTER CHUYỂN Ô TỰ ĐỘNG (LOOP INPUTS) ---
-        function setupInboundKeyNavigation() {
-            const inputIds = [
-                'inboundTagId',
-                'inboundBin',
-                'inboundCode',
-                'inboundWH',
-                'inboundQuality'
-            ];
-
-            inputIds.forEach((id, index) => {
-                const inputElement = document.getElementById(id);
-                if (!inputElement) return;
-
-                inputElement.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter') {
-                        // Nếu chưa phải là ô cuối cùng (Quality)
-                        if (index < inputIds.length - 1) {
-                            e.preventDefault(); // Ngăn không cho form tự động submit sớm
-                            const nextElement = document.getElementById(inputIds[index + 1]);
-                            if (nextElement) {
-                                nextElement.focus();
+                    return allData;
+                },
+                async fetchAllComparison() {
+                    let allData = [];
+                    let page = 0;
+                    const pageSize = 1000;
+                    let hasMore = true;
+                    
+                    while (hasMore) {
+                        const { data, error } = await supabaseClient
+                            .from('v_inventory_comparison')
+                            .select('*')
+                            .range(page * pageSize, (page + 1) * pageSize - 1);
+                            
+                        if (error) throw error;
+                        if (data && data.length > 0) {
+                            allData = allData.concat(data);
+                            if (data.length < pageSize) {
+                                hasMore = false;
+                            } else {
+                                page++;
                             }
+                        } else {
+                            hasMore = false;
                         }
-                        // Nếu là ô cuối cùng, Enter sẽ tự động kích hoạt gửi form (onsubmit) để lưu dữ liệu
                     }
-                });
-            });
-        }
+                    return allData;
+                },
+                async checkLoginState() {
+                    const savedUser = localStorage.getItem('loggedInUser') || sessionStorage.getItem('loggedInUser');
+                    if (savedUser) {
+                        try {
+                            this.currentUser = JSON.parse(savedUser);
+                            this.currentRole = this.currentUser.role;
+                            this.currentDisplayName = this.currentUser.display_name;
+                            
+                            await this.fetchFromSupabase();
+                            await this.fetchLogsFromSupabase();
+                        } catch (e) {
+                            console.error("Lỗi đăng nhập:", e);
+                            this.handleLogout();
+                        }
+                    }
+                },
+                async handleLoginSubmit() {
+                    this.loginErrorMessage = '';
+                    this.isLoading = true;
 
-        // --- HIỂN THỊ THÔNG BÁO TRẠNG THÁI NGẮN GỌN TRONG FORM (TRÁNH LÀM GIÁN ĐOẠN) ---
-        function showInboundStatus(message, isError = false) {
-            const statusDiv = document.getElementById('inboundStatusMessage');
-            if (!statusDiv) return;
+                    try {
+                        const { data, error } = await supabaseClient
+                            .from('app_users')
+                            .select('*')
+                            .ilike('username', this.loginUsername.trim())
+                            .eq('password', this.loginPassword)
+                            .maybeSingle();
 
-            statusDiv.innerText = message;
-            if (isError) {
-                statusDiv.className = "block py-2 px-3 rounded-lg text-xs font-semibold text-center text-rose-700 bg-rose-50 border border-rose-200";
-            } else {
-                statusDiv.className = "block py-2 px-3 rounded-lg text-xs font-semibold text-center text-emerald-700 bg-emerald-50 border border-emerald-200";
-            }
+                        if (error) throw error;
 
-            statusDiv.classList.remove('hidden');
-            // Tự động ẩn thông báo sau 2.5 giây
-            setTimeout(() => {
-                statusDiv.classList.add('hidden');
-            }, 2500);
-        }
+                        if (!data) {
+                            this.loginErrorMessage = "Tên đăng nhập hoặc mật khẩu không chính xác.";
+                            return;
+                        }
 
-        // --- XỬ LÝ NHẬP KHO LÊN SUPABASE (VÒNG LẶP LIÊN TỤC) ---
-        async function handleInboundSubmit(e) {
-            e.preventDefault();
-            const tagId = document.getElementById('inboundTagId').value.trim();
-            const bin = document.getElementById('inboundBin').value.trim();
-            const code = document.getElementById('inboundCode').value.trim();
-            const wh = document.getElementById('inboundWH').value.trim();
-            const quality = Number(document.getElementById('inboundQuality').value);
+                        this.currentUser = data;
+                        this.currentRole = data.role;
+                        this.currentDisplayName = data.display_name;
 
-            try {
-                const { error } = await supabaseClient
-                    .from('inventory')
-                    .insert([{ tag_id: tagId, bin: bin, code: code, wh: wh, quality: quality }]);
+                        const userString = JSON.stringify(this.currentUser);
+                        if (this.rememberMe) {
+                            localStorage.setItem('loggedInUser', userString);
+                        } else {
+                            sessionStorage.setItem('loggedInUser', userString);
+                        }
 
-                if (error) throw error;
+                        await this.fetchFromSupabase();
+                        await this.fetchLogsFromSupabase();
 
-                // Lưu log lịch sử hoạt động
-                await logActivity('NHAP_KHO', tagId, code, bin, wh, quality, 'Nhập dữ liệu kho mới');
+                    } catch (err) {
+                        console.error("Lỗi xác thực: ", err);
+                        this.loginErrorMessage = "Lỗi hệ thống: " + err.message;
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+                handleLogout() {
+                    localStorage.removeItem('loggedInUser');
+                    sessionStorage.removeItem('loggedInUser');
+                    this.currentUser = null;
+                    this.currentRole = 'Viewer';
+                    this.currentDisplayName = 'Guest';
+                    this.inventoryData = [];
+                    this.systemInventoryData = [];
+                    this.comparisonData = [];
+                    this.logData = [];
+                },
+                async fetchFromSupabase() {
+                    try {
+                        const [invData, sysData, compData] = await Promise.all([
+                            this.fetchAllRows('inventory'),
+                            this.fetchAllRows('system_inventory'),
+                            this.fetchAllComparison()
+                        ]);
 
-                // Dọn sạch nội dung các ô nhập liệu
-                document.getElementById('inboundForm').reset();
-                
-                // Hiển thị thông báo trạng thái không chặn màn hình
-                showInboundStatus(`Đã lưu thành công mã hàng: ${code}`);
+                        this.inventoryData = invData || [];
+                        this.systemInventoryData = sysData || [];
+                        this.comparisonData = (compData || []).filter(item => Number(item.actual_qty || 0) > 0);
 
-                // Đồng bộ và tải lại dữ liệu mới nhất dưới nền
-                await fetchFromSupabase(); 
+                    } catch (err) {
+                        console.error("Lỗi đồng bộ Supabase: ", err);
+                        alert("Đồng bộ dữ liệu thất bại: " + err.message);
+                    }
+                },
+                async fetchLogsFromSupabase() {
+                    try {
+                        const { data, error } = await supabaseClient
+                            .from('ghilog')
+                            .select('*')
+                            .order('id', { ascending: false }); 
+                        
+                        if (error) throw error;
+                        this.logData = data || [];
+                    } catch (err) {
+                        console.error("Lỗi đồng bộ dữ liệu ghilog: ", err);
+                    }
+                },
+                async logActivity(actionType, tagId, code, bin, wh, quality, details) {
+                    try {
+                        await supabaseClient
+                            .from('ghilog')
+                            .insert([{
+                                username: this.currentDisplayName,
+                                action_type: actionType,
+                                tag_id: tagId,
+                                code: code,
+                                bin: bin,
+                                wh: wh,
+                                quality: quality,
+                                details: details
+                            }]);
+                        await this.fetchLogsFromSupabase(); 
+                    } catch (err) {
+                        console.error("Lỗi ghi Log: ", err.message);
+                    }
+                },
+                // Modal operations
+                openModal(name) {
+                    this.modals[name] = true;
+                    if (name === 'inbound') {
+                        this.$nextTick(() => {
+                            const input = document.getElementById('inboundTagId');
+                            if (input) input.focus();
+                        });
+                    }
+                },
+                closeModal(name) {
+                    this.modals[name] = false;
+                },
+                // Đổi cấu trúc Sửa dòng sang Bảng Nổi (Modal)
+                startRowEdit(item) {
+                    this.editForm = {
+                        id: item.id,
+                        tag_id: item.tag_id || '',
+                        bin: item.bin || '',
+                        code: item.code || '',
+                        wh: item.wh || '',
+                        quality: Number(item.quality || 0)
+                    };
+                    this.openModal('edit');
+                },
+                async handleEditSubmit() {
+                    if (this.isSavingEdit) return;
+                    this.isSavingEdit = true;
 
-                // Tự động đưa con trỏ chuột quay trở lại ô Tag ID đầu tiên cho lượt nhập tiếp theo
-                const tagIdInput = document.getElementById('inboundTagId');
-                if (tagIdInput) {
-                    tagIdInput.focus();
-                }
+                    try {
+                        const { error } = await supabaseClient
+                            .from('inventory')
+                            .update({ 
+                                tag_id: this.editForm.tag_id.trim(), 
+                                bin: this.editForm.bin.trim(), 
+                                code: this.editForm.code.trim(), 
+                                wh: this.editForm.wh.trim(), 
+                                quality: this.editForm.quality 
+                            })
+                            .eq('id', this.editForm.id);
+                        
+                        if (error) throw error;
 
-            } catch (err) {
-                console.error("Lỗi khi thêm mới dữ liệu: ", err);
-                showInboundStatus("Lỗi nhập dữ liệu: " + err.message, true);
-            }
-        }
+                        await this.logActivity('CHINH_SUA', this.editForm.tag_id, this.editForm.code, this.editForm.bin, this.editForm.wh, this.editForm.quality, `Sửa chi tiết bản ghi qua Bảng nổi. ID: ${this.editForm.id}`);
+                        this.closeModal('edit');
+                        alert('Đã cập nhật dữ liệu thành công!');
+                        await this.fetchFromSupabase(); 
+                    } catch (err) {
+                        console.error(err);
+                        alert("Cập nhật thất bại: " + err.message);
+                    } finally {
+                        this.isSavingEdit = false;
+                    }
+                },
+                async handleInboundSubmit() {
+                    if (this.isSavingInbound) return;
+                    this.isSavingInbound = true;
 
-        // --- CHẾ ĐỘ XUẤT KHO NÂNG CAO ---
-        function toggleOutboundModeField() {
-            const mode = document.getElementById('outboundMode').value;
-            const woField = document.getElementById('outboundWoField');
-            if (mode === "WO") {
-                woField.classList.remove('hidden');
-            } else {
-                woField.classList.add('hidden');
-            }
-        }
+                    const tagId = this.inboundForm.tag_id.trim();
+                    const bin = this.inboundForm.bin.trim();
+                    const code = this.inboundForm.code.trim();
+                    const wh = this.inboundForm.wh.trim();
+                    const quality = Number(this.inboundForm.quality);
 
-        async function handleOutboundSubmit(e) {
-            e.preventDefault();
-            const mode = document.getElementById('outboundMode').value;
-            const woValue = document.getElementById('outboundWoValue').value.trim();
-            const tagId = document.getElementById('outboundTagId').value.trim();
-            const qtyStr = document.getElementById('outboundQty').value;
-            const qtyToReduce = qtyStr ? Number(qtyStr) : null;
+                    try {
+                        const { error } = await supabaseClient
+                            .from('inventory')
+                            .insert([{ tag_id: tagId, bin: bin, code: code, wh: wh, quality: quality }]);
 
-            try {
-                const { data, error: fetchError } = await supabaseClient
-                    .from('inventory')
-                    .select('*')
-                    .eq('tag_id', tagId);
+                        if (error) throw error;
 
-                if (fetchError) throw fetchError;
+                        await this.logActivity('NHAP_KHO', tagId, code, bin, wh, quality, 'Nhập dữ liệu tồn kho mới');
 
-                if (!data || data.length === 0) {
-                    alert("Không tìm thấy mã Tag ID này trong hệ thống!");
-                    return;
-                }
+                        this.inboundForm.tag_id = '';
+                        this.inboundForm.bin = '';
+                        this.inboundForm.code = '';
+                        this.inboundForm.wh = '';
+                        this.inboundForm.quality = '';
 
-                const currentItem = data[0];
-                const currentQty = Number(currentItem.quality || 0);
+                        this.showInboundStatus(`Đã lưu thành công mã hàng: ${code}`, false);
+                        await this.fetchFromSupabase();
 
-                let logActionType = '';
-                let logDetails = '';
+                        this.$nextTick(() => {
+                            const tagIdInput = document.getElementById('inboundTagId');
+                            if (tagIdInput) tagIdInput.focus();
+                        });
 
-                if (mode === "WO") {
-                    if (!woValue) {
-                        alert("Vui lòng điền mã lệnh WO!");
+                    } catch (err) {
+                        console.error(err);
+                        this.showInboundStatus("Lỗi nhập dữ liệu: " + err.message, true);
+                    } finally {
+                        this.isSavingInbound = false;
+                    }
+                },
+                showInboundStatus(msg, isErr) {
+                    this.inboundStatus.message = msg;
+                    this.inboundStatus.isError = isErr;
+                    this.inboundStatus.visible = true;
+                    setTimeout(() => {
+                        this.inboundStatus.visible = false;
+                    }, 2500);
+                },
+                async handleOutboundSubmit() {
+                    if (this.isSavingOutbound) return;
+                    this.isSavingOutbound = true;
+
+                    const mode = this.outboundForm.mode;
+                    const woValue = this.outboundForm.woValue.trim();
+                    const tagId = this.outboundForm.tag_id.trim();
+                    const qtyToReduce = this.outboundForm.quality ? Number(this.outboundForm.quality) : null;
+
+                    try {
+                        const { data, error: fetchError } = await supabaseClient
+                            .from('inventory')
+                            .select('*')
+                            .eq('tag_id', tagId);
+
+                        if (fetchError) throw fetchError;
+
+                        if (!data || data.length === 0) {
+                            alert("Không tìm thấy mã Tag ID này trong hệ thống!");
+                            return;
+                        }
+
+                        const currentItem = data[0];
+                        const currentQty = Number(currentItem.quality || 0);
+
+                        let logActionType = '';
+                        let logDetails = '';
+
+                        if (mode === "WO") {
+                            logActionType = 'XUAT_WO';
+                            logDetails = `Số WO: ${woValue}`;
+                        } else if (mode === "YEU_CAU") {
+                            logActionType = 'XUAT_YEU_CAU';
+                            logDetails = 'Hoạt động phát yêu cầu phòng sản xuất';
+                        } else {
+                            logActionType = 'XUAT_TIEU_HAO';
+                            logDetails = 'Phát vật liệu tiêu hao';
+                        }
+
+                        if (qtyToReduce === null || qtyToReduce >= currentQty) {
+                            const { error: deleteError } = await supabaseClient
+                                .from('inventory')
+                                .delete()
+                                .eq('tag_id', tagId);
+                            
+                            if (deleteError) throw deleteError;
+                            await this.logActivity(logActionType, tagId, currentItem.code, currentItem.bin, currentItem.wh, currentQty, logDetails + ' (Xuất hết)');
+                            alert(`Đã xuất toàn bộ mã tag ${tagId} ra khỏi kho.`);
+                        } else {
+                            const { error: updateError } = await supabaseClient
+                                .from('inventory')
+                                .update({ quality: currentQty - qtyToReduce })
+                                .eq('tag_id', tagId);
+
+                            if (updateError) throw updateError;
+                            await this.logActivity(logActionType, tagId, currentItem.code, currentItem.bin, currentItem.wh, qtyToReduce, logDetails + ` (Xuất 1 phần - giảm ${qtyToReduce})`);
+                            alert(`Đã xuất và trừ đi ${qtyToReduce} sản phẩm thuộc thẻ ${tagId}.`);
+                        }
+
+                        this.closeModal('outbound');
+                        this.outboundForm.tag_id = '';
+                        this.outboundForm.quality = '';
+                        this.outboundForm.woValue = '';
+                        await this.fetchFromSupabase();
+
+                    } catch (err) {
+                        console.error(err);
+                        alert("Xuất kho thất bại: " + err.message);
+                    } finally {
+                        this.isSavingOutbound = false;
+                    }
+                },
+                // Nhập nhanh CSV Thực tế
+                handleCSVFile(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.csvImportText = e.target.result;
+                    };
+                    reader.readAsText(file);
+                },
+                async processCSVImport() {
+                    if (this.isSavingCsv) return;
+                    this.isSavingCsv = true;
+
+                    const rawText = this.csvImportText.trim();
+                    if (!rawText) {
+                        alert("Vui lòng dán văn bản CSV!");
+                        this.isSavingCsv = false;
                         return;
                     }
-                    logActionType = 'XUAT_WO';
-                    logDetails = `Số WO: ${woValue}`;
-                } else if (mode === "YEU_CAU") {
-                    logActionType = 'XUAT_YEU_CAU';
-                    logDetails = 'Hoạt động phát yêu cầu phòng sản xuất';
-                } else {
-                    logActionType = 'XUAT_TIEU_HAO';
-                    logDetails = 'Phát vật liệu tiêu hao';
+
+                    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
+                    if (lines.length < 2) {
+                        alert("Nội dung CSV không đầy đủ!");
+                        this.isSavingCsv = false;
+                        return;
+                    }
+
+                    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+                    const requiredFields = ['tag_id', 'bin', 'code', 'wh', 'quality'];
+                    const missingFields = requiredFields.filter(f => !headers.includes(f));
+                    if (missingFields.length > 0) {
+                        alert(`Dữ liệu CSV thiếu các trường tiêu đề bắt buộc: ${missingFields.join(', ')}`);
+                        this.isSavingCsv = false;
+                        return;
+                    }
+
+                    const payload = [];
+                    for (let i = 1; i < lines.length; i++) {
+                        const values = lines[i].split(',').map(v => v.trim());
+                        if (values.length !== headers.length) continue; 
+
+                        const rowObj = {};
+                        headers.forEach((header, idx) => {
+                            rowObj[header] = values[idx];
+                        });
+
+                        payload.push({
+                            tag_id: rowObj.tag_id,
+                            bin: rowObj.bin,
+                            code: rowObj.code,
+                            wh: rowObj.wh,
+                            quality: Number(rowObj.quality || 0)
+                        });
+                    }
+
+                    try {
+                        const { error } = await supabaseClient.from('inventory').insert(payload);
+                        if (error) throw error;
+
+                        await this.logActivity('IMPORT_CSV', `Số dòng: ${payload.length}`, 'NHIỀU_CODE', 'NHIỀU_BIN', 'NHIỀU_WH', 0, `Nhập nhanh thực tế từ tệp CSV.`);
+                        this.closeModal('csvImport');
+                        this.csvImportText = '';
+                        alert(`Nhập thành công ${payload.length} dòng dữ liệu CSV thực tế!`);
+                        await this.fetchFromSupabase();
+                    } catch (err) {
+                        console.error(err);
+                        alert("Nhập thất bại: " + err.message);
+                    } finally {
+                        this.isSavingCsv = false;
+                    }
+                },
+                // Nhập CSV Hệ Thống
+                handleSystemCSVFile(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.systemCsvText = e.target.result;
+                    };
+                    reader.readAsText(file);
+                },
+                async processSystemCSVImport() {
+                    if (this.isSavingSystem) return;
+                    this.isSavingSystem = true;
+
+                    const rawText = this.systemCsvText.trim();
+                    if (!rawText) {
+                        alert("Vui lòng dán văn bản CSV!");
+                        this.isSavingSystem = false;
+                        return;
+                    }
+
+                    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
+                    if (lines.length < 2) {
+                        alert("Nội dung CSV hệ thống không đầy đủ!");
+                        this.isSavingSystem = false;
+                        return;
+                    }
+
+                    const firstLine = lines[0];
+                    let delimiter = ',';
+                    if (firstLine.includes(';')) {
+                        delimiter = ';';
+                    } else if (firstLine.includes('\t')) {
+                        delimiter = '\t';
+                    }
+
+                    const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase());
+
+                    const stockCodeKeys = ['stock code', 'stock_code', 'code', 'mã hàng'];
+                    const warehouseKeys = ['warehouse', 'wh', 'kho'];
+                    const batchKeys = ['batch', 'tag_id', 'tagid', 'mã tag'];
+                    const binKeys = ['bin', 'vị trí'];
+                    const qtyKeys = ['qty', 'quality', 'số lượng', 'so luong'];
+
+                    let codeIdx = headers.findIndex(h => stockCodeKeys.includes(h));
+                    let whIdx = headers.findIndex(h => warehouseKeys.includes(h));
+                    let tagIdx = headers.findIndex(h => batchKeys.includes(h));
+                    let binIdx = headers.findIndex(h => binKeys.includes(h));
+                    let qtyIdx = headers.findIndex(h => qtyKeys.includes(h));
+
+                    if (codeIdx === -1 || whIdx === -1 || tagIdx === -1 || qtyIdx === -1) {
+                        alert("Cấu trúc file hệ thống không khớp! Yêu cầu chứa các cột: Stock Code, Warehouse, BATCH, Qty.");
+                        this.isSavingSystem = false;
+                        return;
+                    }
+
+                    const latestRecordsMap = {};
+
+                    for (let i = 1; i < lines.length; i++) {
+                        const values = lines[i].split(delimiter).map(v => v.trim());
+                        if (values.length !== headers.length) continue;
+
+                        const batchTagId = values[tagIdx];
+                        const record = {
+                            code: values[codeIdx],
+                            wh: values[whIdx],
+                            tag_id: batchTagId,
+                            bin: binIdx !== -1 ? values[binIdx] : '',
+                            quality: Number(values[qtyIdx] || 0)
+                        };
+
+                        latestRecordsMap[batchTagId] = record;
+                    }
+
+                    const payload = Object.values(latestRecordsMap);
+
+                    try {
+                        await supabaseClient.from('system_inventory').delete().not('id', 'is', null);
+
+                        const { error } = await supabaseClient.from('system_inventory').insert(payload);
+                        if (error) throw error;
+
+                        await this.logActivity('IMPORT_CSV', `Số dòng: ${payload.length}`, 'NHIỀU_CODE', 'NHIỀU_BIN', 'NHIỀU_WH', 0, `Nạp file nguồn hệ thống (Lấy dòng cuối).`);
+                        this.closeModal('systemCsv');
+                        this.systemCsvText = '';
+                        alert(`Đã nạp thành công ${payload.length} bản ghi nguồn hệ thống sạch (lọc trùng cuối tệp)!`);
+                        await this.fetchFromSupabase();
+                    } catch (err) {
+                        console.error(err);
+                        alert("Nạp file nguồn thất bại: " + err.message);
+                    } finally {
+                        this.isSavingSystem = false;
+                    }
+                },
+                // Phím tắt Enter di chuyển nhanh giữa các ô input
+                setupInboundKeyNavigation() {
+                    const inputIds = ['inboundTagId', 'inboundBin', 'inboundCode', 'inboundWH', 'inboundQuality'];
+                    inputIds.forEach((id, index) => {
+                        const el = document.getElementById(id);
+                        if (!el) return;
+                        el.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                if (index < inputIds.length - 1) {
+                                    e.preventDefault();
+                                    const nextEl = document.getElementById(inputIds[index + 1]);
+                                    if (nextEl) nextEl.focus();
+                                }
+                            }
+                        });
+                    });
+                },
+                // Khởi tạo biểu đồ
+                initChart() {
+                    const ctx = document.getElementById('comparisonChart').getContext('2d');
+                    this.mainChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: [],
+                            datasets: [
+                                {
+                                    label: 'Thực Tế (Actual)',
+                                    data: [],
+                                    backgroundColor: '#10b981',
+                                    borderWidth: 0,
+                                    borderRadius: 4
+                                },
+                                {
+                                    label: 'Hệ Thống (System)',
+                                    data: [],
+                                    backgroundColor: '#ef4444',
+                                    borderWidth: 0,
+                                    borderRadius: 4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'top', labels: { boxWidth: 12, font: { size: 9 } } },
+                                zoom: {
+                                    pan: { enabled: true, mode: 'x' },
+                                    zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                                }
+                            },
+                            scales: {
+                                x: { ticks: { maxRotation: 90, minRotation: 45, font: { size: 9 } } },
+                                y: { grid: { color: 'rgba(226, 232, 240, 0.5)' } }
+                            }
+                        }
+                    });
+                },
+                updateChart() {
+                    if (!this.mainChart) return;
+                    const labels = this.filteredComparisonData.map(item => item.code);
+                    const actualDataset = this.filteredComparisonData.map(item => Number(item.actual_qty || 0));
+                    const systemDataset = this.filteredComparisonData.map(item => Number(item.system_qty || 0));
+
+                    this.mainChart.data.labels = labels;
+                    this.mainChart.data.datasets[0].data = actualDataset;
+                    this.mainChart.data.datasets[1].data = systemDataset;
+                    this.mainChart.update();
+                },
+                resetZoomAndPan() {
+                    if (this.mainChart) this.mainChart.resetZoom();
+                },
+                formatDate(dateStr) {
+                    if (!dateStr) return '';
+                    return new Date(dateStr).toLocaleString('vi-VN');
+                },
+                getActionBadgeClass(action) {
+                    switch(action) {
+                        case 'NHAP_KHO': return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                        case 'XUAT_WO': return 'bg-rose-50 text-rose-700 border border-rose-200';
+                        case 'XUAT_YEU_CAU': return 'bg-amber-50 text-amber-700 border border-amber-200';
+                        case 'XUAT_TIEU_HAO': return 'bg-orange-50 text-orange-700 border border-orange-200';
+                        case 'CHINH_SUA': return 'bg-blue-50 text-blue-700 border border-blue-200';
+                        case 'IMPORT_CSV': return 'bg-purple-50 text-purple-700 border border-purple-200';
+                        default: return 'bg-slate-100 text-slate-700';
+                    }
+                },
+                getActionIconClass(action) {
+                    switch(action) {
+                        case 'NHAP_KHO': return 'fa-solid fa-arrow-down-long';
+                        case 'XUAT_WO': return 'fa-solid fa-industry';
+                        case 'XUAT_YEU_CAU': return 'fa-solid fa-file-signature';
+                        case 'XUAT_TIEU_HAO': return 'fa-solid fa-wrench';
+                        case 'CHINH_SUA': return 'fa-solid fa-pen-to-square';
+                        case 'IMPORT_CSV': return 'fa-solid fa-file-csv';
+                        default: return 'fa-solid fa-circle-info';
+                    }
+                },
+                getActionLabel(action) {
+                    switch(action) {
+                        case 'NHAP_KHO': return 'Nhập Kho';
+                        case 'XUAT_WO': return 'Xuất WO';
+                        case 'XUAT_YEU_CAU': return 'Xuất Phiếu Yêu Cầu';
+                        case 'XUAT_TIEU_HAO': return 'Vật liệu tiêu hao';
+                        case 'CHINH_SUA': return 'Chỉnh Sửa';
+                        case 'IMPORT_CSV': return 'Import CSV';
+                        default: return action;
+                    }
+                },
+                exportToExcel() {
+                    if (this.inventoryData.length === 0) {
+                        alert("Không có dữ liệu tồn kho thực tế để xuất!");
+                        return;
+                    }
+
+                    const workbook = XLSX.utils.book_new();
+
+                    const inventoryRows = this.inventoryData.map(item => ({
+                        "ID": item.id,
+                        "Ngày Tạo": item.created_at,
+                        "Tag ID": item.tag_id,
+                        "Vị trí (Bin)": item.bin,
+                        "Mã hàng (Code)": item.code,
+                        "Kho (WH)": item.wh,
+                        "Sản lượng thực tế (Quality)": Number(item.quality || 0)
+                    }));
+                    const wsInventory = XLSX.utils.json_to_sheet(inventoryRows);
+                    XLSX.utils.book_append_sheet(workbook, wsInventory, "Thực tế");
+
+                    const systemRows = this.systemInventoryData.map(item => ({
+                        "ID": item.id,
+                        "Ngày tạo": item.created_at,
+                        "BATCH (Tag ID)": item.tag_id,
+                        "BIN (Vị trí)": item.bin,
+                        "Stock Code (Mã hàng)": item.code,
+                        "Warehouse (Kho)": item.wh,
+                        "Qty (Số lượng)": Number(item.quality || 0)
+                    }));
+                    const wsSystem = XLSX.utils.json_to_sheet(systemRows);
+                    XLSX.utils.book_append_sheet(workbook, wsSystem, "Hệ thống");
+
+                    const logRows = this.logData.map(log => ({
+                        "Log ID": log.id,
+                        "Thời gian tạo": log.created_at,
+                        "Người thực hiện": log.username || 'System',
+                        "Loại hoạt động": log.action_type,
+                        "Tag ID": log.tag_id,
+                        "Mã hàng (Code)": log.code,
+                        "Vị trí (Bin)": log.bin,
+                        "Kho (WH)": log.wh,
+                        "Số lượng": log.quality ? Number(log.quality) : '',
+                        "Chi tiết / Ghi chú": log.details || ''
+                    }));
+                    const wsLogs = XLSX.utils.json_to_sheet(logRows);
+                    XLSX.utils.book_append_sheet(workbook, wsLogs, "Nhật ký hoạt động");
+
+                    const dateStr = new Date().toISOString().slice(0, 10);
+                    XLSX.writeFile(workbook, `BaoCao_TongHop_${dateStr}.xlsx`);
                 }
-
-                if (qtyToReduce === null || qtyToReduce >= currentQty) {
-                    const { error: deleteError = null } = await supabaseClient
-                        .from('inventory')
-                        .delete()
-                        .eq('tag_id', tagId);
-                    
-                    if (deleteError) throw deleteError;
-
-                    await logActivity(logActionType, tagId, currentItem.code, currentItem.bin, currentItem.wh, currentQty, logDetails + ' (Xuất hết)');
-                    alert(`Đã xuất toàn bộ mã tag ${tagId} ra khỏi kho.`);
-                } else {
-                    const { error: updateError = null } = await supabaseClient
-                        .from('inventory')
-                        .update({ quality: currentQty - qtyToReduce })
-                        .eq('tag_id', tagId);
-
-                    if (updateError) throw updateError;
-
-                    await logActivity(logActionType, tagId, currentItem.code, currentItem.bin, currentItem.wh, qtyToReduce, logDetails + ` (Xuất 1 phần - giảm ${qtyToReduce})`);
-                    alert(`Đã xuất và trừ đi ${qtyToReduce} sản phẩm thuộc thẻ ${tagId}.`);
-                }
-
-                closeModal('outboundModal');
-                document.getElementById('outboundForm').reset();
-                await fetchFromSupabase(); 
-            } catch (err) {
-                console.error("Lỗi thực thi quy trình xuất kho: ", err);
-                alert("Xuất kho thất bại: " + err.message);
             }
-        }
-
-        // --- THUẬT TOÁN THÊM NHANH BẰNG CSV THỰC TẾ ---
-        function handleCSVFile(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('csvTextArea').value = e.target.result;
-            };
-            reader.readAsText(file);
-        }
-
-        async function processCSVImport() {
-            const rawText = document.getElementById('csvTextArea').value.trim();
-            if (!rawText) {
-                alert("Vui lòng dán văn bản CSV!");
-                return;
-            }
-
-            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
-            if (lines.length < 2) {
-                alert("Nội dung CSV không đầy đủ!");
-                return;
-            }
-
-            const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-            const requiredFields = ['tag_id', 'bin', 'code', 'wh', 'quality'];
-            const missingFields = requiredFields.filter(f => !headers.includes(f));
-            if (missingFields.length > 0) {
-                alert(`Dữ liệu CSV thiếu các trường tiêu đề bắt buộc: ${missingFields.join(', ')}`);
-                return;
-            }
-
-            const payload = [];
-            for (let i = 1; i < lines.length; i++) {
-                const values = lines[i].split(',').map(v => v.trim());
-                if (values.length !== headers.length) continue; 
-
-                const rowObj = {};
-                headers.forEach((header, idx) => {
-                    rowObj[header] = values[idx];
-                });
-
-                payload.push({
-                    tag_id: rowObj.tag_id,
-                    bin: rowObj.bin,
-                    code: rowObj.code,
-                    wh: rowObj.wh,
-                    quality: Number(rowObj.quality || 0)
-                });
-            }
-
-            try {
-                const { error } = await supabaseClient.from('inventory').insert(payload);
-                if (error) throw error;
-
-                await logActivity('IMPORT_CSV', `Số dòng: ${payload.length}`, 'NHIỀU_CODE', 'NHIỀU_BIN', 'NHIỀU_WH', 0, `Nhập nhanh thực tế từ tệp CSV.`);
-                closeModal('csvImportModal');
-                alert(`Nhập thành công ${payload.length} dòng dữ liệu CSV thực tế!`);
-                await fetchFromSupabase();
-            } catch (err) {
-                console.error(err);
-                alert("Nhập thất bại: " + err.message);
-            }
-        }
-
-        // --- NHẬP FILE HỆ THỐNG VỚI PHƯƠNG PHÁP LẤY DỮ LIỆU CUỐI CÙNG ---
-        function handleSystemCSVFile(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('systemCsvTextArea').value = e.target.result;
-            };
-            reader.readAsText(file);
-        }
-
-        async function processSystemCSVImport() {
-            const rawText = document.getElementById('systemCsvTextArea').value.trim();
-            if (!rawText) {
-                alert("Vui lòng dán văn bản CSV!");
-                return;
-            }
-
-            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
-            if (lines.length < 2) {
-                alert("Nội dung CSV hệ thống không đầy đủ!");
-                return;
-            }
-
-            // Tự động phát hiện dấu phân cách (Semicolon ';' hoặc Comma ',')
-            const firstLine = lines[0];
-            let delimiter = ',';
-            if (firstLine.includes(';')) {
-                delimiter = ';';
-            } else if (firstLine.includes('\t')) {
-                delimiter = '\t';
-            }
-
-            const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase());
-
-            const stockCodeKeys = ['stock code', 'stock_code', 'code', 'mã hàng'];
-            const warehouseKeys = ['warehouse', 'wh', 'kho'];
-            const batchKeys = ['batch', 'tag_id', 'tagid', 'mã tag'];
-            const binKeys = ['bin', 'vị trí'];
-            const qtyKeys = ['qty', 'quality', 'số lượng', 'so luong', 'qty'];
-
-            let codeIdx = headers.findIndex(h => stockCodeKeys.includes(h));
-            let whIdx = headers.findIndex(h => warehouseKeys.includes(h));
-            let tagIdx = headers.findIndex(h => batchKeys.includes(h));
-            let binIdx = headers.findIndex(h => binKeys.includes(h));
-            let qtyIdx = headers.findIndex(h => qtyKeys.includes(h));
-
-            if (codeIdx === -1 || whIdx === -1 || tagIdx === -1 || qtyIdx === -1) {
-                alert("Cấu trúc file hệ thống không khớp! Yêu cầu chứa các cột: Stock Code, Warehouse, BATCH, Qty.");
-                return;
-            }
-
-            // Thuật toán lọc trùng và lấy bản ghi cuối cùng (Deduplication)
-            const latestRecordsMap = {};
-
-            for (let i = 1; i < lines.length; i++) {
-                const values = lines[i].split(delimiter).map(v => v.trim());
-                if (values.length !== headers.length) continue;
-
-                const batchTagId = values[tagIdx];
-                const record = {
-                    code: values[codeIdx],
-                    wh: values[whIdx],
-                    tag_id: batchTagId,
-                    bin: binIdx !== -1 ? values[binIdx] : '',
-                    quality: Number(values[qtyIdx] || 0)
-                };
-
-                // Đè giá trị cũ bằng giá trị sau cùng trong file tệp để lấy dữ liệu cuối cùng
-                latestRecordsMap[batchTagId] = record;
-            }
-
-            const payload = Object.values(latestRecordsMap); // Lấy mảng dữ liệu cuối cùng sạch nhất
-
-            try {
-                // Xóa sạch bảng hệ thống nguồn cũ
-                await supabaseClient.from('system_inventory').delete().not('id', 'is', null);
-
-                // Nạp tệp nguồn mới đã lọc trùng
-                const { error } = await supabaseClient.from('system_inventory').insert(payload);
-                if (error) throw error;
-
-                await logActivity('IMPORT_CSV', `Số dòng: ${payload.length}`, 'NHIỀU_CODE', 'NHIỀU_BIN', 'NHIỀU_WH', 0, `Nạp file nguồn hệ thống (Lấy dòng cuối).`);
-                closeModal('systemCsvModal');
-                alert(`Đã nạp thành công ${payload.length} bản ghi nguồn hệ thống sạch (đã đồng bộ lọc trùng)!`);
-                await fetchFromSupabase();
-            } catch (err) {
-                console.error(err);
-                alert("Nạp file nguồn thất bại: " + err.message);
-            }
-        }
-
-        // --- 15. XUẤT FILE EXCEL.XLSX ĐA SHEET ---
-        function exportToExcel() {
-            if (filteredData.length === 0) {
-                alert("Không có dữ liệu tồn kho thực tế để xuất!");
-                return;
-            }
-
-            const workbook = XLSX.utils.book_new();
-
-            // SHEET 1: Dữ liệu tồn kho thực tế
-            const inventoryRows = filteredData.map(item => ({
-                "ID": item.id,
-                "Ngày Tạo": item.created_at,
-                "Tag ID": item.tag_id,
-                "Vị trí (Bin)": item.bin,
-                "Mã hàng (Code)": item.code,
-                "Kho (WH)": item.wh,
-                "Sản lượng thực tế (Quality)": Number(item.quality || 0)
-            }));
-            const wsInventory = XLSX.utils.json_to_sheet(inventoryRows);
-            XLSX.utils.book_append_sheet(workbook, wsInventory, "Thực tế");
-
-            // SHEET 2: Dữ liệu tồn kho hệ thống (File Nguồn)
-            const systemRows = systemInventoryData.map(item => ({
-                "ID": item.id,
-                "Ngày tạo": item.created_at,
-                "BATCH (Tag ID)": item.tag_id,
-                "BIN (Vị trí)": item.bin,
-                "Stock Code (Mã hàng)": item.code,
-                "Warehouse (Kho)": item.wh,
-                "Qty (Số lượng)": Number(item.quality || 0)
-            }));
-            const wsSystem = XLSX.utils.json_to_sheet(systemRows);
-            XLSX.utils.book_append_sheet(workbook, wsSystem, "Hệ thống");
-
-            // SHEET 3: Nhật ký hoạt động (ghilog)
-            const logRows = logData.map(log => ({
-                "Log ID": log.id,
-                "Thời gian tạo": log.created_at,
-                "Người thực hiện": log.username || 'System',
-                "Loại hoạt động": log.action_type,
-                "Tag ID": log.tag_id,
-                "Mã hàng (Code)": log.code,
-                "Vị trí (Bin)": log.bin,
-                "Kho (WH)": log.wh,
-                "Số lượng": log.quality ? Number(log.quality) : '',
-                "Chi tiết / Ghi chú": log.details || ''
-            }));
-            const wsLogs = XLSX.utils.json_to_sheet(logRows);
-            XLSX.utils.book_append_sheet(workbook, wsLogs, "Nhật ký hoạt động");
-
-            const dateStr = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(workbook, `BaoCao_TongHop_${dateStr}.xlsx`);
-        }
+        }).mount('#app');
     </script>
 </body>
 </html>
