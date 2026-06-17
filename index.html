@@ -196,6 +196,7 @@
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <i class="fa-solid fa-magnifying-glass"></i>
                     </div>
+                    <!-- Đồng bộ hoàn toàn dữ liệu với reactivity Vue 3 -->
                     <input type="text" v-model="smartFilter" placeholder="Tìm kiếm nhanh... Nhập mã hàng (code), vị trí (bin), mã tag (tagid), hoặc kho (wh)..." class="w-full pl-10 pr-4 py-2 sm:py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm shadow-sm">
                 </div>
             </div>
@@ -755,10 +756,10 @@
                     if (!this.smartFilter) return this.inventoryData;
                     const query = this.smartFilter.toLowerCase().trim();
                     return this.inventoryData.filter(item => {
-                        return (item.code || '').toLowerCase().includes(query) ||
-                               (item.bin || '').toLowerCase().includes(query) ||
-                               (item.wh || '').toLowerCase().includes(query) ||
-                               (item.tag_id || '').toLowerCase().includes(query);
+                        return String(item.code || '').toLowerCase().includes(query) ||
+                               String(item.bin || '').toLowerCase().includes(query) ||
+                               String(item.wh || '').toLowerCase().includes(query) ||
+                               String(item.tag_id || '').toLowerCase().includes(query);
                     });
                 },
                 renderedInventory() {
@@ -779,19 +780,23 @@
                     if (this.logFilter) {
                         const query = this.logFilter.toLowerCase().trim();
                         logs = logs.filter(log => {
-                            return (log.action_type || '').toLowerCase().includes(query) ||
-                                   (log.code || '').toLowerCase().includes(query) ||
-                                   (log.tag_id || '').toLowerCase().includes(query) ||
-                                   (log.bin || '').toLowerCase().includes(query) ||
-                                   (log.username || '').toLowerCase().includes(query) ||
-                                   (log.details || '').toLowerCase().includes(query);
+                            return String(log.action_type || '').toLowerCase().includes(query) ||
+                                   String(log.code || '').toLowerCase().includes(query) ||
+                                   String(log.tag_id || '').toLowerCase().includes(query) ||
+                                   String(log.bin || '').toLowerCase().includes(query) ||
+                                   String(log.username || '').toLowerCase().includes(query) ||
+                                   String(log.details || '').toLowerCase().includes(query);
                         });
                     }
 
                     // 2. Lọc thời gian: chỉ hiện log trong vòng 24 giờ gần nhất, trừ khi bật showOlderLogs
                     if (!this.showOlderLogs) {
                         const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-                        logs = logs.filter(log => new Date(log.created_at).getTime() >= oneDayAgo);
+                        logs = logs.filter(log => {
+                            const logTime = new Date(log.created_at).getTime();
+                            if (isNaN(logTime)) return true; // Giữ lại nếu định dạng ngày bị lỗi
+                            return logTime >= oneDayAgo;
+                        });
                     }
 
                     // 3. Giới hạn tải thêm động
@@ -994,9 +999,10 @@
                         console.error("Lỗi đồng bộ dữ liệu ghilog: ", err);
                     }
                 },
+                // Bổ sung luồng kiểm tra chẽ và nạp lại log sau khi tương tác với database
                 async logActivity(actionType, tagId, code, bin, wh, quality, details) {
                     try {
-                        await supabaseClient
+                        const { data, error } = await supabaseClient
                             .from('ghilog')
                             .insert([{
                                 username: this.currentDisplayName,
@@ -1007,10 +1013,18 @@
                                 wh: wh,
                                 quality: quality,
                                 details: details
-                            }]);
+                            }])
+                            .select(); 
+                        
+                        if (error) {
+                            console.error("Lỗi chi tiết khi lưu ghilog:", error);
+                            alert("Không thể ghi nhận nhật ký hoạt động: " + error.message);
+                            throw error;
+                        }
+                        
                         await this.fetchLogsFromSupabase(); 
                     } catch (err) {
-                        console.error("Lỗi ghi Log: ", err.message);
+                        console.error("Lỗi thực thi quy trình ghi Log: ", err.message);
                     }
                 },
                 // Modal operations
@@ -1123,7 +1137,7 @@
                         this.inboundStatus.visible = false;
                     }, 2500);
                 },
-                // LOGIC XUẤT KHO CHỐNG TRÙNG LẶP THEO ID ĐƠN LẺ
+                // LOGIC XUẤT KHO CHỐNG TRÙNG LẶP THEO ID ĐƠN LẺ VÀ GHI LOG PHÂN TÁCH
                 async handleOutboundSubmit() {
                     if (this.isSavingOutbound) return;
 
@@ -1132,91 +1146,86 @@
                     const tagId = this.outboundForm.tag_id.trim();
                     const qtyToReduce = this.outboundForm.quality ? Number(this.outboundForm.quality) : null;
 
-                    // Bước 1: Nếu chưa có danh sách trùng hoặc người dùng đổi mã Tag ID mới
-                    if (this.outboundDuplicates.length === 0) {
-                        this.isSavingOutbound = true;
-                        try {
-                            const { data, error: fetchError } = await supabaseClient
-                                .from('inventory')
-                                .select('*')
-                                .eq('tag_id', tagId);
+                    let currentItem = null;
 
-                            if (fetchError) throw fetchError;
+                    // Bước 1: Kiểm tra trùng khớp
+                    if (this.outboundSelectedRowId === null) {
+                        // So khớp trực tiếp trên toàn bộ kho cục bộ để hạn chế delay API
+                        const matches = this.inventoryData.filter(item => String(item.tag_id || '').trim() === tagId);
 
-                            if (!data || data.length === 0) {
-                                alert("Không tìm thấy mã Tag ID này trong hệ thống!");
-                                this.isSavingOutbound = false;
-                                return;
-                            }
-
-                            if (data.length > 1) {
-                                // Phát hiện trùng lặp Tag ID -> Chuyển sang hiển thị radio select
-                                this.outboundDuplicates = data;
-                                this.outboundSelectedRowId = data[0].id; // Mặc định chọn dòng đầu
-                                this.isSavingOutbound = false;
-                                return;
-                            } else {
-                                // Chỉ có 1 dòng độc nhất tương thích
-                                this.outboundSelectedRowId = data[0].id;
-                            }
-                        } catch (err) {
-                            console.error(err);
-                            alert("Lỗi kiểm tra Tag ID: " + err.message);
-                            this.isSavingOutbound = false;
+                        if (matches.length === 0) {
+                            alert("Không tìm thấy mã Tag ID này trong hệ thống kho thực tế!");
                             return;
                         }
+
+                        if (matches.length > 1) {
+                            // Phát hiện trùng lặp Tag ID -> Tạm dừng luồng và mở danh sách tích chọn
+                            this.outboundDuplicates = matches;
+                            this.outboundSelectedRowId = matches[0].id; // Mặc định chọn phần tử đầu
+                            return; 
+                        } else {
+                            // Chỉ có một phần tử duy nhất
+                            currentItem = matches[0];
+                            this.outboundSelectedRowId = currentItem.id;
+                        }
+                    } else {
+                        // Người dùng đã tích chọn ID mong muốn từ bảng chọn hoặc luồng cũ
+                        currentItem = this.inventoryData.find(item => item.id === this.outboundSelectedRowId);
                     }
 
-                    // Bước 2: Bắt đầu xử lý xóa hoặc cập nhật theo ID cụ thể đã lựa chọn
-                    this.isSavingOutbound = true;
-                    try {
-                        // Xác định chi tiết của đối tượng được chọn
-                        const currentItem = this.outboundDuplicates.length > 0
-                            ? this.outboundDuplicates.find(d => d.id === this.outboundSelectedRowId)
-                            : this.inventoryData.find(i => i.id === this.outboundSelectedRowId);
+                    if (!currentItem) {
+                        alert("Không thể định vị được dòng dữ liệu cần xuất!");
+                        return;
+                    }
 
-                        if (!currentItem) {
-                            alert("Không thể định vị được dòng dữ liệu được tích chọn!");
+                    // Tiến hành xuất kho chính thức
+                    this.isSavingOutbound = true;
+                    const currentQty = Number(currentItem.quality || 0);
+
+                    let logActionType = '';
+                    let logDetails = '';
+
+                    if (mode === "WO") {
+                        if (!woValue) {
+                            alert("Vui lòng nhập mã lệnh WO!");
                             this.isSavingOutbound = false;
                             return;
                         }
+                        logActionType = 'XUAT_WO';
+                        logDetails = `Số WO: ${woValue}`;
+                    } else if (mode === "YEU_CAU") {
+                        logActionType = 'XUAT_YEU_CAU';
+                        logDetails = 'Hoạt động phát yêu cầu phòng sản xuất';
+                    } else {
+                        logActionType = 'XUAT_TIEU_HAO';
+                        logDetails = 'Phát vật liệu tiêu hao';
+                    }
 
-                        const currentQty = Number(currentItem.quality || 0);
-
-                        let logActionType = '';
-                        let logDetails = '';
-
-                        if (mode === "WO") {
-                            logActionType = 'XUAT_WO';
-                            logDetails = `Số WO: ${woValue}`;
-                        } else if (mode === "YEU_CAU") {
-                            logActionType = 'XUAT_YEU_CAU';
-                            logDetails = 'Hoạt động phát yêu cầu phòng sản xuất';
-                        } else {
-                            logActionType = 'XUAT_TIEU_HAO';
-                            logDetails = 'Phát vật liệu tiêu hao';
-                        }
-
+                    try {
                         if (qtyToReduce === null || qtyToReduce >= currentQty) {
-                            // Xóa chính xác theo khóa chính ID để tránh ảnh hưởng tới dòng có chung Tag ID khác
+                            // Xóa chính xác theo khóa chính ID
                             const { error: deleteError } = await supabaseClient
                                 .from('inventory')
                                 .delete()
                                 .eq('id', currentItem.id);
                             
                             if (deleteError) throw deleteError;
-                            await this.logActivity(logActionType, tagId, currentItem.code, currentItem.bin, currentItem.wh, currentQty, logDetails + ` (Xuất hết dòng ID: #${currentItem.id})`);
-                            alert(`Đã xuất toàn bộ dữ liệu dòng ID #${currentItem.id} thuộc mã tag ${tagId} ra khỏi kho.`);
+                            
+                            // Ghi nhận lịch sử hoạt động chính xác
+                            await this.logActivity(logActionType, currentItem.tag_id, currentItem.code, currentItem.bin, currentItem.wh, currentQty, logDetails + ` (Xuất hết dòng ID: #${currentItem.id})`);
+                            alert(`Đã xuất toàn bộ dữ liệu dòng ID #${currentItem.id} (Tag: ${currentItem.tag_id}) ra khỏi kho.`);
                         } else {
-                            // Cập nhật số lượng chính xác theo ID
+                            // Cập nhật số lượng chính xác theo ID dòng
                             const { error: updateError } = await supabaseClient
                                 .from('inventory')
                                 .update({ quality: currentQty - qtyToReduce })
                                 .eq('id', currentItem.id);
 
                             if (updateError) throw updateError;
-                            await this.logActivity(logActionType, tagId, currentItem.code, currentItem.bin, currentItem.wh, qtyToReduce, logDetails + ` (Xuất một phần dòng ID: #${currentItem.id} - giảm ${qtyToReduce})`);
-                            alert(`Đã xuất và trừ đi ${qtyToReduce} sản phẩm thuộc dòng ID #${currentItem.id} (Tag: ${tagId}).`);
+                            
+                            // Ghi nhận lịch sử hoạt động chính xác
+                            await this.logActivity(logActionType, currentItem.tag_id, currentItem.code, currentItem.bin, currentItem.wh, qtyToReduce, logDetails + ` (Xuất 1 phần dòng ID: #${currentItem.id} - giảm ${qtyToReduce})`);
+                            alert(`Đã xuất và trừ đi ${qtyToReduce} sản phẩm thuộc dòng ID #${currentItem.id} (Tag: ${currentItem.tag_id}).`);
                         }
 
                         this.closeModal('outbound');
@@ -1225,10 +1234,11 @@
                         this.outboundForm.woValue = '';
                         this.outboundDuplicates = [];
                         this.outboundSelectedRowId = null;
+                        
                         await this.fetchFromSupabase();
 
                     } catch (err) {
-                        console.error(err);
+                        console.error("Lỗi quy trình xuất kho:", err);
                         alert("Xuất kho thất bại: " + err.message);
                     } finally {
                         this.isSavingOutbound = false;
