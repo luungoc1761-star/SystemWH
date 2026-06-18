@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -127,6 +128,97 @@
                     </div>
                     <div class="bg-rose-50 p-2.5 rounded-lg text-rose-600 text-sm border border-rose-100">
                         <i class="fa-solid fa-scale-unbalanced"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== THẺ THAO TÁC: CÔNG CỤ TÍNH TOÁN ĐỊNH LƯỢNG (THÊM MỚI) ==================== -->
+            <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Cột Nhập liệu và Tính toán tự động -->
+                <div class="lg:col-span-1 space-y-4 border-r border-slate-100 pr-0 lg:pr-6">
+                    <h4 class="font-bold text-slate-700 flex items-center text-xs sm:text-sm uppercase tracking-wider">
+                        <i class="fa-solid fa-calculator text-blue-500 mr-2"></i> Công Cụ Tính Toán Định Lượng
+                    </h4>
+                    
+                    <!-- Ô Nhập Mã Hàng và Gợi ý lấy từ Supabase -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Mã hàng (Vật liệu)</label>
+                        <div class="relative">
+                            <input type="text" v-model="calcForm.code" list="calcMaterialSuggestions" placeholder="Nhập hoặc chọn mã hàng..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
+                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400">
+                                <i class="fa-solid fa-angle-down text-xs"></i>
+                            </div>
+                        </div>
+                        <p v-if="selectedMaterialWeight !== null" class="text-[10px] text-emerald-600 font-semibold mt-1">
+                            <i class="fa-solid fa-circle-info mr-1"></i> Đơn trọng hệ thống: {{ selectedMaterialWeight }} kg/pcs
+                        </p>
+                        <p v-else-if="calcForm.code" class="text-[10px] text-rose-500 font-semibold mt-1">
+                            <i class="fa-solid fa-triangle-exclamation mr-1"></i> Mã hàng chưa được cấu hình định lượng định mức!
+                        </p>
+                    </div>
+
+                    <!-- Ô Nhập và Công thức Tính toán tự động -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Số lượng (Pcs)</label>
+                            <input type="number" v-model.number="calcForm.pcs" @input="onCalcPcsInput" :disabled="selectedMaterialWeight === null" placeholder="Nhập Pcs..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm disabled:bg-slate-50 disabled:text-slate-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Trọng lượng (Kg)</label>
+                            <input type="number" step="any" v-model.number="calcForm.kg" @input="onCalcKgInput" :disabled="selectedMaterialWeight === null" placeholder="Nhập Kg..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm disabled:bg-slate-50 disabled:text-slate-400">
+                        </div>
+                    </div>
+
+                    <button type="button" @click="addCalcRow" :disabled="!calcForm.code || !calcForm.pcs || selectedMaterialWeight === null" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg text-xs shadow-md transition duration-150 flex items-center justify-center space-x-1.5 disabled:opacity-50">
+                        <i class="fa-solid fa-plus text-[10px]"></i>
+                        <span>Thêm vào danh sách</span>
+                    </button>
+                </div>
+
+                <!-- Cột Hiển thị Bảng tính toán các nội dung: Mã hàng, Pcs, Kg -->
+                <div class="lg:col-span-2 flex flex-col justify-between">
+                    <div>
+                        <h4 class="font-bold text-slate-700 flex items-center text-xs sm:text-sm uppercase tracking-wider mb-3">
+                            <i class="fa-solid fa-table text-indigo-500 mr-2"></i> Bảng Phân Tích Tính Toán Định Lượng
+                        </h4>
+                        <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-[160px] overflow-y-auto">
+                            <table class="w-full text-left border-collapse text-xs min-w-[400px]">
+                                <thead class="bg-slate-100 text-slate-600 uppercase font-bold sticky top-0 border-b border-slate-200 z-10">
+                                    <tr>
+                                        <th class="py-2 px-3">STT</th>
+                                        <th class="py-2 px-3">Mã Hàng</th>
+                                        <th class="py-2 px-3 text-right">Số lượng (Pcs)</th>
+                                        <th class="py-2 px-3 text-right">Khối lượng (Kg)</th>
+                                        <th class="py-2 px-3 text-center">Xóa</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200 font-medium text-slate-700">
+                                    <tr v-for="(row, index) in calcHistory" :key="index" class="hover:bg-slate-50 transition">
+                                        <td class="py-2 px-3 text-slate-400 font-mono">{{ index + 1 }}</td>
+                                        <td class="py-2 px-3 font-bold text-slate-800">{{ row.code }}</td>
+                                        <td class="py-2 px-3 text-right font-semibold">{{ Number(row.pcs || 0).toLocaleString('vi-VN') }}</td>
+                                        <td class="py-2 px-3 text-right font-mono font-bold text-blue-600">{{ Number(row.kg || 0).toLocaleString('vi-VN') }} kg</td>
+                                        <td class="py-2 px-3 text-center">
+                                            <button @click="removeCalcRow(index)" class="text-rose-500 hover:text-rose-700 p-1" title="Xóa dòng">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="calcHistory.length === 0">
+                                        <td colspan="5" class="py-6 text-center text-slate-400">Chưa có bản ghi tính toán nào được tạo</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div v-if="calcHistory.length > 0" class="mt-3 pt-2.5 border-t border-slate-100 flex justify-between items-center text-xs">
+                        <div class="text-slate-500">
+                            Số mã tính toán: <span class="font-bold text-slate-800">{{ calcHistory.length }}</span>
+                        </div>
+                        <div class="font-bold text-slate-900">
+                            Tổng khối lượng: <span class="text-emerald-600 font-mono text-sm">{{ calcHistory.reduce((acc, c) => acc + c.kg, 0).toLocaleString('vi-VN') }} kg</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -656,6 +748,13 @@
             <option v-for="wh in uniqueWHs" :key="wh" :value="wh"></option>
         </datalist>
 
+        <!-- Datalist gợi ý mã định lượng từ bảng material_weights trên Supabase -->
+        <datalist id="calcMaterialSuggestions">
+            <option v-for="item in materialWeights" :key="item.code" :value="item.code">
+                Đơn trọng: {{ item.kg }} kg/pcs
+            </option>
+        </datalist>
+
     </div>
 
     <!-- Script điều khiển chính -->
@@ -691,6 +790,15 @@
                     systemInventoryData: [],
                     comparisonData: [],
                     logData: [],
+
+                    // Trạng thái cho Thao tác Tính toán định lượng (Mới)
+                    materialWeights: [], // Chứa dữ liệu định lượng lấy từ Supabase
+                    calcForm: {
+                        code: '',
+                        pcs: null,
+                        kg: null
+                    },
+                    calcHistory: [], // Danh sách bảng tính toán hiển thị trực tiếp
 
                     // Filtering & Progressive Slicing Limits (Thay cho phân trang nặng)
                     smartFilter: '',
@@ -752,6 +860,12 @@
                 }
             },
             computed: {
+                // Lấy đơn trọng kg dựa vào mã hàng đang điền trong ô tính toán
+                selectedMaterialWeight() {
+                    if (!this.calcForm.code) return null;
+                    const match = this.materialWeights.find(item => item.code.trim().toLowerCase() === this.calcForm.code.trim().toLowerCase());
+                    return match ? Number(match.kg) : null;
+                },
                 // Tối ưu hóa: filteredInventory chỉ lọc dữ liệu của bảng kho thực tế
                 filteredInventory() {
                     if (!this.smartFilter) return this.inventoryData;
@@ -839,6 +953,10 @@
                 'outboundForm.tag_id'() {
                     this.outboundDuplicates = [];
                     this.outboundSelectedRowId = null;
+                },
+                // Khi thay đổi mã hàng ở mục tính toán, tự tính lại theo số Pcs đang có sẵn
+                'calcForm.code'() {
+                    this.onCalcPcsInput();
                 }
             },
             mounted() {
@@ -847,6 +965,42 @@
                 this.setupInboundKeyNavigation();
             },
             methods: {
+                // Tự động tính toán số Kg từ số Pcs: pcs cần * số kg của mã hàng
+                onCalcPcsInput() {
+                    const weight = this.selectedMaterialWeight;
+                    if (weight === null || this.calcForm.pcs === null || this.calcForm.pcs === '') {
+                        this.calcForm.kg = null;
+                        return;
+                    }
+                    this.calcForm.kg = Number((this.calcForm.pcs * weight).toFixed(4));
+                },
+                // Tự động tính toán số Pcs từ số Kg: số kg điền / số kg của mã hàng
+                onCalcKgInput() {
+                    const weight = this.selectedMaterialWeight;
+                    if (weight === null || this.calcForm.kg === null || this.calcForm.kg === '' || weight === 0) {
+                        this.calcForm.pcs = null;
+                        return;
+                    }
+                    this.calcForm.pcs = Number((this.calcForm.kg / weight).toFixed(2));
+                },
+                // Thêm kết quả tính toán định lượng vào bảng hiển thị
+                addCalcRow() {
+                    if (!this.calcForm.code) return;
+                    if (this.calcForm.pcs === null || this.calcForm.kg === null) return;
+
+                    this.calcHistory.push({
+                        code: this.calcForm.code.trim().toUpperCase(),
+                        pcs: this.calcForm.pcs,
+                        kg: this.calcForm.kg
+                    });
+
+                    // Reset form để sẵn sàng nhập dòng mới
+                    this.calcForm.pcs = null;
+                    this.calcForm.kg = null;
+                },
+                removeCalcRow(index) {
+                    this.calcHistory.splice(index, 1);
+                },
                 // Phân trang tự động để lấy sạch dữ liệu quá 1000 dòng từ Supabase
                 async fetchAllRows(tableName) {
                     let allData = [];
@@ -967,18 +1121,22 @@
                     this.systemInventoryData = [];
                     this.comparisonData = [];
                     this.logData = [];
+                    this.materialWeights = [];
+                    this.calcHistory = [];
                 },
                 async fetchFromSupabase() {
                     try {
-                        const [invData, sysData, compData] = await Promise.all([
+                        const [invData, sysData, compData, weightData] = await Promise.all([
                             this.fetchAllRows('inventory'),
                             this.fetchAllRows('system_inventory'),
-                            this.fetchAllComparison()
+                            this.fetchAllComparison(),
+                            supabaseClient.from('material_weights').select('*').order('code', { ascending: true })
                         ]);
 
                         this.inventoryData = invData || [];
                         this.systemInventoryData = sysData || [];
                         this.comparisonData = (compData || []).filter(item => Number(item.actual_qty || 0) > 0);
+                        this.materialWeights = weightData.data || [];
 
                     } catch (err) {
                         console.error("Lỗi đồng bộ Supabase: ", err);
@@ -1570,3 +1728,4 @@
     </script>
 </body>
 </html>
+```
